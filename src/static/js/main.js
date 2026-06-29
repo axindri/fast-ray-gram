@@ -1,10 +1,51 @@
-import { api, handleApiError, isInvalidToken, logoutToLogin, onLogout } from "./api.js";
+import { api, handleApiError, isUnauthorized, logoutToLogin, onLogout } from "./api.js";
 import { app, state, storageKey } from "./state.js";
-import { formatDate, formData, needsDeleteConfirm, resetDeleteConfirm, showFeedback, toNumber, ui, withBusy } from "./ui.js";
+import {
+  formatDate,
+  formData,
+  prepareFormAction,
+  resetDeleteConfirm,
+  toNumber,
+  ui,
+  updatePanel,
+  withBusy,
+} from "./ui.js";
 import { emptyPagination } from "./pagination.js";
 import { checkInvoices, createPayment, loadAllInvoices, loadStatus, refreshProfile, renderDashboard, renderLogin } from "./views.js";
 
 onLogout(renderLogin);
+
+const formHandlers = {
+  login: submitLogin,
+  "create-user": submitCreateUser,
+  "user-actions": submitUserActions,
+  "xui-client": submitXuiClient,
+  "new-payment": (form) => createPayment(form),
+};
+
+const formFeedback = {
+  "create-user": "#create-user-feedback",
+  "user-actions": "#user-manage-feedback",
+  "xui-client": "#xui-feedback",
+  "new-payment": "#profile-invoices-feedback",
+};
+
+const actionHandlers = {
+  logout: () => logoutToLogin(),
+  "check-invoices": checkInvoices,
+  "load-status": loadStatus,
+  "refresh-profile": refreshProfile,
+  "invoices-prev": () => loadAllInvoices({ page: state.allInvoices.page - 1 }),
+  "invoices-next": () => loadAllInvoices({ page: state.allInvoices.page + 1 }),
+};
+
+const actionFeedback = {
+  "check-invoices": "#invoices-feedback",
+  "load-status": "#status-feedback",
+  "refresh-profile": "#profile-invoices-feedback",
+  "invoices-prev": "#all-invoices-feedback",
+  "invoices-next": "#all-invoices-feedback",
+};
 
 async function login(token) {
   state.token = token;
@@ -27,7 +68,7 @@ async function submitLogin(form) {
 
 async function submitCreateUser(form) {
   await withBusy(form.closest(".card"), async () => {
-    showFeedback("#create-user-feedback", "");
+    updatePanel("#create-user-feedback", "");
     const data = formData(form);
     const token = await api("/admin/users/create", {
       method: "POST",
@@ -42,23 +83,18 @@ async function submitCreateUser(form) {
         enable: true,
       }),
     });
-    showFeedback("#create-user-feedback", ui.readonly("Новый токен", token));
+    updatePanel("#create-user-feedback", ui.readonly("Новый токен", token));
   });
 }
 
 async function submitUserActions(form, submitter) {
-  const action = submitter.value;
-
-  if (action !== "delete") {
-    resetDeleteConfirm(form);
-  }
-
-  if (needsDeleteConfirm(action, submitter)) {
+  const action = prepareFormAction(form, submitter);
+  if (!action) {
     return;
   }
 
   await withBusy(form.closest(".card"), async () => {
-    showFeedback("#user-manage-feedback", "");
+    updatePanel("#user-manage-feedback", "");
     const { id } = formData(form);
     const routes = {
       get: [`/admin/users/get/${id}`, "GET"],
@@ -70,32 +106,30 @@ async function submitUserActions(form, submitter) {
     resetDeleteConfirm(form);
 
     if (action === "refresh") {
-      showFeedback("#user-manage-feedback", ui.readonly("Новый токен", result));
+      updatePanel("#user-manage-feedback", ui.readonly("Новый токен", result));
       return;
     }
 
     if (action === "delete") {
-      showFeedback("#user-manage-feedback", ui.status("Пользователь удалён"));
+      updatePanel("#user-manage-feedback", ui.status("Пользователь удалён"));
       return;
     }
 
-    showFeedback("#user-manage-feedback", `<div class="item"><b>${result.username}</b><span>ID: ${result.id} · ${result.role}</span></div>`);
+    updatePanel(
+      "#user-manage-feedback",
+      `<div class="item"><b>${result.username}</b><span>ID: ${result.id} · ${result.role}</span></div>`,
+    );
   });
 }
 
 async function submitXuiClient(form, submitter) {
-  const action = submitter.value;
-
-  if (action !== "delete") {
-    resetDeleteConfirm(form);
-  }
-
-  if (needsDeleteConfirm(action, submitter)) {
+  const action = prepareFormAction(form, submitter);
+  if (!action) {
     return;
   }
 
   await withBusy(form.closest(".card"), async () => {
-    showFeedback("#xui-feedback", "");
+    updatePanel("#xui-feedback", "");
     const data = formData(form);
     const email = encodeURIComponent(data.email);
 
@@ -107,7 +141,7 @@ async function submitXuiClient(form, submitter) {
           enable: data.enable === "true",
         }),
       });
-      showFeedback("#xui-feedback", ui.status("Клиент обновлён"));
+      updatePanel("#xui-feedback", ui.status("Клиент обновлён"));
       return;
     }
 
@@ -121,31 +155,27 @@ async function submitXuiClient(form, submitter) {
     resetDeleteConfirm(form);
 
     if (action === "get") {
-      showFeedback("#xui-feedback", `<div class="item"><b>${result.email}</b><span>до ${formatDate(result.expiry_datetime)} · ${result.total_gb} GB</span></div>`);
+      updatePanel(
+        "#xui-feedback",
+        `<div class="item"><b>${result.email}</b><span>до ${formatDate(result.expiry_datetime)} · ${result.total_gb} GB</span></div>`,
+      );
       return;
     }
 
-    showFeedback("#xui-feedback", ui.status(action === "delete" ? "Клиент удалён" : "Трафик сброшен"));
+    updatePanel("#xui-feedback", ui.status(action === "delete" ? "Клиент удалён" : "Трафик сброшен"));
   });
 }
 
 async function handleForm(event) {
   event.preventDefault();
   const form = event.target;
-  const submitter = event.submitter;
+  const handler = formHandlers[form.dataset.form];
 
   try {
-    const handlers = {
-      login: submitLogin,
-      "create-user": submitCreateUser,
-      "user-actions": submitUserActions,
-      "xui-client": submitXuiClient,
-      "new-payment": (form) => createPayment(form),
-    };
-    await handlers[form.dataset.form](form, submitter);
+    await handler(form, event.submitter);
   } catch (error) {
     if (form.dataset.form === "login") {
-      if (isInvalidToken(error)) {
+      if (isUnauthorized(error)) {
         logoutToLogin(error.message);
         return;
       }
@@ -153,14 +183,7 @@ async function handleForm(event) {
       return;
     }
 
-    const feedback = {
-      "create-user": "#create-user-feedback",
-      "user-actions": "#user-manage-feedback",
-      "xui-client": "#xui-feedback",
-      "new-payment": "#profile-invoices-feedback",
-    }[form.dataset.form];
-
-    handleApiError(error, feedback);
+    handleApiError(error, formFeedback[form.dataset.form]);
   }
 }
 
@@ -178,46 +201,23 @@ async function handleAction(event) {
   }
 
   const action = event.target.dataset.action;
-  if (!action) {
+  const handler = action && actionHandlers[action];
+  if (!handler) {
     return;
   }
 
-  if (action === "logout") {
-    logoutToLogin();
+  if (action === "invoices-prev" && state.allInvoices.page <= 1) {
+    return;
+  }
+
+  if (action === "invoices-next" && state.allInvoices.page >= state.allInvoices.pages) {
     return;
   }
 
   try {
-    if (action === "check-invoices") {
-      await checkInvoices();
-    }
-    if (action === "load-status") {
-      await loadStatus();
-    }
-    if (action === "refresh-profile") {
-      await refreshProfile();
-    }
-    if (action === "invoices-prev") {
-      if (state.allInvoices.page <= 1) {
-        return;
-      }
-      await loadAllInvoices({ page: state.allInvoices.page - 1 });
-    }
-    if (action === "invoices-next") {
-      if (state.allInvoices.page >= state.allInvoices.pages) {
-        return;
-      }
-      await loadAllInvoices({ page: state.allInvoices.page + 1 });
-    }
+    await handler();
   } catch (error) {
-    const feedback = {
-      "check-invoices": "#invoices-feedback",
-      "load-status": "#status-feedback",
-      "refresh-profile": "#profile-invoices-feedback",
-      "invoices-prev": "#all-invoices-feedback",
-      "invoices-next": "#all-invoices-feedback",
-    }[action];
-    handleApiError(error, feedback);
+    handleApiError(error, actionFeedback[action]);
   }
 }
 
@@ -229,7 +229,7 @@ async function boot() {
     try {
       await login(state.token);
     } catch (error) {
-      if (isInvalidToken(error)) {
+      if (isUnauthorized(error)) {
         logoutToLogin(error.message);
         return;
       }

@@ -76,7 +76,7 @@ export function shell(content) {
     initFooterOneko();
   });
 
-  loadAppVersion();
+  renderAppVersion();
   renderStatusBanner();
 }
 
@@ -169,44 +169,31 @@ export function renderStatusBanner() {
     return;
   }
 
-  if (!state.token) {
-    banner.textContent = "";
+  let message = "";
+  let visible = false;
+
+  if (state.token && !state.statusLoading) {
+    if (!state.status) {
+      message = "Внимание: не удалось проверить статус сервисов. Создание и оплата счетов недоступны.";
+      visible = true;
+    } else {
+      const issues = getStatusServices()
+        .filter(({ item }) => String(item.status || "").toLowerCase() !== "ok")
+        .map(({ name }) => name);
+
+      if (issues.length) {
+        message = `Внимание: проблемы с сервисами — ${issues.join(", ")}. Создание и оплата счетов недоступны.`;
+        visible = true;
+      }
+    }
+  }
+
+  banner.textContent = message;
+  if (visible) {
+    requestAnimationFrame(() => banner.classList.add("is-visible"));
+  } else {
     banner.classList.remove("is-visible");
-    updatePaymentFormState();
-    return;
   }
-
-  if (state.statusLoading) {
-    banner.textContent = "";
-    banner.classList.remove("is-visible");
-    updatePaymentFormState();
-    return;
-  }
-
-  if (!state.status) {
-    banner.textContent = "Внимание: не удалось проверить статус сервисов. Создание и оплата счетов недоступны.";
-    requestAnimationFrame(() => {
-      banner.classList.add("is-visible");
-    });
-    updatePaymentFormState();
-    return;
-  }
-
-  const issues = getStatusServices()
-    .filter(({ item }) => String(item.status || "").toLowerCase() !== "ok")
-    .map(({ name }) => name);
-
-  if (!issues.length) {
-    banner.textContent = "";
-    banner.classList.remove("is-visible");
-    updatePaymentFormState();
-    return;
-  }
-
-  banner.textContent = `Внимание: проблемы с сервисами — ${issues.join(", ")}. Создание и оплата счетов недоступны.`;
-  requestAnimationFrame(() => {
-    banner.classList.add("is-visible");
-  });
 
   updatePaymentFormState();
 }
@@ -221,19 +208,11 @@ export function renderAppVersion() {
   el.textContent = `v${version}`;
 }
 
-function loadAppVersion() {
-  renderAppVersion();
-}
-
 export function updatePanel(id, html) {
   const panel = document.querySelector(id);
   if (panel) {
     panel.innerHTML = html;
   }
-}
-
-export function showFeedback(id, html) {
-  updatePanel(id, html);
 }
 
 export function formData(form) {
@@ -268,6 +247,14 @@ export async function withBusy(container, fn) {
     setBusy(container, false);
     updatePaymentFormState();
   }
+}
+
+export async function withOptionalBusy(container, quiet, fn) {
+  if (quiet || !container) {
+    return fn();
+  }
+
+  return withBusy(container, fn);
 }
 
 const deleteConfirmTimers = new WeakMap();
@@ -305,6 +292,20 @@ function armDeleteConfirm(button) {
 
   const timer = setTimeout(() => resetDeleteConfirm(button), 5000);
   deleteConfirmTimers.set(button, timer);
+}
+
+export function prepareFormAction(form, submitter) {
+  const action = submitter.value;
+
+  if (action !== "delete") {
+    resetDeleteConfirm(form);
+  }
+
+  if (needsDeleteConfirm(action, submitter)) {
+    return null;
+  }
+
+  return action;
 }
 
 export function needsDeleteConfirm(action, submitter) {

@@ -1,6 +1,6 @@
 import { emptyPagination } from "./pagination.js";
-import { state, storageKey } from "./state.js";
-import { showFeedback, ui } from "./ui.js";
+import { configDefaults, state, storageKey } from "./state.js";
+import { updatePanel, ui } from "./ui.js";
 
 let logoutHandler = () => {};
 
@@ -8,34 +8,21 @@ export function onLogout(handler) {
   logoutHandler = handler;
 }
 
-function mapAppConfig(data, defaults) {
+function mapAppConfig(data) {
   return {
     version: data.version || "",
-    minInvoiceAmount: data.min_invoice_amount ?? defaults.minInvoiceAmount,
-    maxInvoiceAmount: data.max_invoice_amount ?? defaults.maxInvoiceAmount,
-    defaultExpiryTimeDays: data.default_expiry_time_days ?? defaults.defaultExpiryTimeDays,
+    minInvoiceAmount: data.min_invoice_amount ?? configDefaults.minInvoiceAmount,
+    maxInvoiceAmount: data.max_invoice_amount ?? configDefaults.maxInvoiceAmount,
+    defaultExpiryTimeDays: data.default_expiry_time_days ?? configDefaults.defaultExpiryTimeDays,
   };
 }
 
 export async function loadAppConfig() {
-  const defaults = {
-    version: "",
-    minInvoiceAmount: 100,
-    maxInvoiceAmount: 1000,
-    defaultExpiryTimeDays: 30,
-  };
-
   try {
-    const data = state.token ? await api("/api/config") : await fetch("/api/config").then(async (response) => (response.ok ? response.json() : null));
-
-    if (!data) {
-      state.config = defaults;
-      return state.config;
-    }
-
-    state.config = mapAppConfig(data, defaults);
+    const response = state.token ? await api("/api/config") : await fetch("/api/config").then((res) => (res.ok ? res.json() : null));
+    state.config = response ? mapAppConfig(response) : { ...configDefaults };
   } catch {
-    state.config = defaults;
+    state.config = { ...configDefaults };
   }
 
   return state.config;
@@ -65,7 +52,7 @@ function formatApiMessage(data, fallback) {
   return data.detail || fallback || "Ошибка запроса";
 }
 
-export function isInvalidToken(error) {
+function isInvalidToken(error) {
   return String(error?.message || "")
     .toLowerCase()
     .includes("invalid token");
@@ -87,14 +74,14 @@ export function logoutToLogin(message = "Сессия истекла, войди
   logoutHandler(message);
 }
 
-export function handleApiError(error, footerSelector) {
+export function handleApiError(error, panelSelector) {
   if (isUnauthorized(error)) {
     logoutToLogin(error.message);
     return;
   }
 
-  if (footerSelector) {
-    showFeedback(footerSelector, ui.apiError(error.message));
+  if (panelSelector) {
+    updatePanel(panelSelector, ui.apiError(error.message));
   }
 }
 

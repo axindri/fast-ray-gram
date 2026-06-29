@@ -1,4 +1,4 @@
-import { api, handleApiError, isInvalidToken, isUnauthorized, loadAppConfig, logoutToLogin, onLogout } from "./api.js";
+import { api, handleApiError, isUnauthorized, loadAppConfig, logoutToLogin } from "./api.js";
 import { clampPage, emptyPagination, normalizePaginated } from "./pagination.js";
 import { pickQuote, renderQuote } from "./quotes.js";
 import { state } from "./state.js";
@@ -10,30 +10,44 @@ import {
   renderPayControl,
   renderStatusBanner,
   shell,
-  showFeedback,
   toNumber,
   ui,
   updatePanel,
   updatePaymentFormState,
   withBusy,
+  withOptionalBusy,
 } from "./ui.js";
 
-function displayName(username = "") {
-  if (!username) {
-    return "друг";
-  }
+const ROLE_LABELS = {
+  admin: "Администратор",
+  superuser: "Суперпользователь",
+};
 
-  return username.charAt(0).toUpperCase() + username.slice(1);
+const ADMIN_LINKS = [
+  { key: "swagger_url", className: "swagger", title: "Swagger", hint: "Документация API" },
+  { key: "xui_panel_url", className: "panel", title: "XUI Panel", hint: "Панель управления" },
+  { key: "servers_url", className: "servers", title: "TimeWeb Servers", hint: "Серверы в панели TimeWeb" },
+];
+
+const invoiceStatusLabels = {
+  pending: "Ожидает оплаты",
+  paid: "Оплачено",
+  cancelled: "Отменён",
+};
+
+const STATUS_POLL_MS = 10_000;
+let statusPollTimer = null;
+
+function displayName(username = "") {
+  return username ? username.charAt(0).toUpperCase() + username.slice(1) : "друг";
 }
 
 function roleLabel(role) {
-  if (role === "admin") {
-    return "Администратор";
-  }
-  if (role === "superuser") {
-    return "Суперпользователь";
-  }
-  return "";
+  return ROLE_LABELS[role] || "";
+}
+
+function defaultExpiryDays() {
+  return state.config?.defaultExpiryTimeDays ?? 30;
 }
 
 function welcomeContent(quote = pickQuote()) {
@@ -53,14 +67,13 @@ function welcomeContent(quote = pickQuote()) {
   `;
 }
 
-const STATUS_POLL_MS = 10_000;
-let statusPollTimer = null;
-
 export function stopStatusPolling() {
-  if (statusPollTimer !== null) {
-    clearInterval(statusPollTimer);
-    statusPollTimer = null;
+  if (statusPollTimer === null) {
+    return;
   }
+
+  clearInterval(statusPollTimer);
+  statusPollTimer = null;
 }
 
 export function startStatusPolling() {
@@ -108,15 +121,18 @@ export async function renderDashboard() {
   updatePaymentFormState();
 
   requestAnimationFrame(() => {
-    setTimeout(async () => {
-      await loadStatus({ quiet: true });
-      startStatusPolling();
-      if (state.isAdmin) {
-        loadAllInvoices({ quiet: true });
-        loadAdminLinks({ quiet: true });
-      }
-    }, 0);
+    void initDashboardData();
   });
+}
+
+async function initDashboardData() {
+  await loadStatus({ quiet: true });
+  startStatusPolling();
+
+  if (state.isAdmin) {
+    loadAllInvoices({ quiet: true });
+    loadAdminLinks({ quiet: true });
+  }
 }
 
 function buildDashboardGroups() {
@@ -179,7 +195,7 @@ function renderProfileInvoicesList() {
     return `<p class="muted">Счетов пока нет</p>`;
   }
 
-  return invoices.map(invoiceItem).join("");
+  return invoices.map((item) => invoiceItem(item)).join("");
 }
 
 function profileInvoicesBlock() {
@@ -205,17 +221,10 @@ function profileInvoicesBlock() {
   );
 }
 
-const invoiceStatusLabels = {
-  pending: "Ожидает оплаты",
-  paid: "Оплачено",
-  cancelled: "Отменён",
-};
-
 function invoiceStatusPill(status) {
   const value = String(status || "").toLowerCase();
   const label = invoiceStatusLabels[value] || value || "—";
-  const klass = invoiceStatusLabels[value] ? value : "";
-  return `<span class="pill${klass ? ` ${klass}` : ""}">${label}</span>`;
+  return `<span class="pill${invoiceStatusLabels[value] ? ` ${value}` : ""}">${label}</span>`;
 }
 
 function invoicePaySlot(item) {
@@ -280,60 +289,42 @@ function adminLinksBlock() {
 
 function renderAdminLinksContent() {
   const links = state.adminLinks;
-
   if (!links) {
     return `<p class="muted">Загружаю...</p>`;
   }
 
-  return `
-    <a class="admin-link-card admin-link-card--swagger" href="${links.swagger_url}" target="_blank" rel="noreferrer">
-      <span class="admin-link-title">Swagger</span>
-      <span class="admin-link-hint">Документация API</span>
-      <span class="admin-link-url">${links.swagger_url}</span>
-    </a>
-    <a class="admin-link-card admin-link-card--panel" href="${links.xui_panel_url}" target="_blank" rel="noreferrer">
-      <span class="admin-link-title">XUI Panel</span>
-      <span class="admin-link-hint">Панель управления</span>
-      <span class="admin-link-url">${links.xui_panel_url}</span>
-    </a>
-    <a class="admin-link-card admin-link-card--servers" href="${links.servers_url}" target="_blank" rel="noreferrer">
-      <span class="admin-link-title">TimeWeb Servers</span>
-      <span class="admin-link-hint">Серверы в панели TimeWeb</span>
-      <span class="admin-link-url">${links.servers_url}</span>
-    </a>
-  `;
+  return ADMIN_LINKS.map(({ key, className, title, hint }) => {
+    const url = links[key];
+    return `
+      <a class="admin-link-card admin-link-card--${className}" href="${url}" target="_blank" rel="noreferrer">
+        <span class="admin-link-title">${title}</span>
+        <span class="admin-link-hint">${hint}</span>
+        <span class="admin-link-url">${url}</span>
+      </a>
+    `;
+  }).join("");
 }
 
 export async function loadAdminLinks({ quiet = false } = {}) {
   const card = document.querySelector("#admin-links-content")?.closest(".card");
 
-  const fetchLinks = async () => {
-    if (document.querySelector("#admin-links-content")) {
-      updatePanel("#admin-links-content", `<p class="muted">Загружаю...</p>`);
-    }
+  await withOptionalBusy(card, quiet, async () => {
+    updatePanel("#admin-links-content", `<p class="muted">Загружаю...</p>`);
 
     try {
       state.adminLinks = await api("/admin/links");
       updatePanel("#admin-links-content", renderAdminLinksContent());
     } catch (error) {
-      if (isInvalidToken(error)) {
-        logoutToLogin(error.message);
-        return;
+      handleApiError(error);
+      if (state.token) {
+        updatePanel("#admin-links-content", ui.apiError(error.message));
       }
-      updatePanel("#admin-links-content", ui.apiError(error.message));
     }
-  };
-
-  if (quiet || !card) {
-    await fetchLinks();
-    return;
-  }
-
-  await withBusy(card, fetchLinks);
+  });
 }
 
 function adminCreateUserBlock() {
-  const expiryDays = state.config?.defaultExpiryTimeDays ?? 30;
+  const expiryDays = defaultExpiryDays();
 
   return ui.card(
     "Создать пользователя",
@@ -371,7 +362,7 @@ function adminUserManageBlock() {
 }
 
 function xuiBlock() {
-  const expiryDays = state.config?.defaultExpiryTimeDays ?? 30;
+  const expiryDays = defaultExpiryDays();
 
   return ui.card(
     "XUI клиент",
@@ -451,7 +442,7 @@ function renderCheckedInvoices() {
     return ui.status("Новых оплаченных инвойсов нет");
   }
 
-  return state.checkedInvoices.map(invoiceItem).join("");
+  return state.checkedInvoices.map((item) => invoiceItem(item)).join("");
 }
 
 export function renderStatus() {
@@ -468,22 +459,18 @@ export async function loadStatus({ quiet = false, poll = false } = {}) {
   const card = document.querySelector("#status-content")?.closest(".card");
   const silent = poll || (quiet && state.status !== null);
 
-  const fetchStatus = async () => {
+  await withOptionalBusy(card, quiet || poll || !card, async () => {
     if (!silent) {
       state.statusLoading = true;
       renderStatusBanner();
       updatePaymentFormState();
       updatePanel("#status-feedback", "");
-      if (document.querySelector("#status-content")) {
-        updatePanel("#status-content", `<p class="muted">Загружаю статус...</p>`);
-      }
+      updatePanel("#status-content", `<p class="muted">Загружаю статус...</p>`);
     }
 
     try {
       state.status = await api("/api/status");
-      if (document.querySelector("#status-content")) {
-        updatePanel("#status-content", renderStatus());
-      }
+      updatePanel("#status-content", renderStatus());
     } catch (error) {
       if (isUnauthorized(error)) {
         stopStatusPolling();
@@ -492,7 +479,7 @@ export async function loadStatus({ quiet = false, poll = false } = {}) {
       }
 
       state.status = null;
-      if (document.querySelector("#status-content") && !silent) {
+      if (!silent) {
         updatePanel("#status-content", `<p class="muted">Статус недоступен</p>`);
         handleApiError(error, "#status-feedback");
       }
@@ -505,14 +492,7 @@ export async function loadStatus({ quiet = false, poll = false } = {}) {
         updatePaymentFormState();
       }
     }
-  };
-
-  if (quiet || poll || !card) {
-    await fetchStatus();
-    return;
-  }
-
-  await withBusy(card, fetchStatus);
+  });
 }
 
 export async function loadAllInvoices({ quiet = false, page = state.allInvoices?.page ?? 1 } = {}) {
@@ -520,11 +500,9 @@ export async function loadAllInvoices({ quiet = false, page = state.allInvoices?
   const previous = state.allInvoices ?? emptyPagination();
   const targetPage = clampPage(page, previous.pages);
 
-  const fetchInvoices = async () => {
+  await withOptionalBusy(card, quiet, async () => {
     updatePanel("#all-invoices-feedback", "");
-    if (document.querySelector("#all-invoices-content")) {
-      updatePanel("#all-invoices-content", `<p class="muted">Загружаю...</p>`);
-    }
+    updatePanel("#all-invoices-content", `<p class="muted">Загружаю...</p>`);
 
     try {
       const data = await api(`/admin/invoices?page=${targetPage}&limit=${previous.limit}`);
@@ -541,14 +519,7 @@ export async function loadAllInvoices({ quiet = false, page = state.allInvoices?
     } catch (error) {
       handleApiError(error, "#all-invoices-feedback");
     }
-  };
-
-  if (quiet || !card) {
-    await fetchInvoices();
-    return;
-  }
-
-  await withBusy(card, fetchInvoices);
+  });
 }
 
 export async function checkInvoices() {
@@ -607,6 +578,6 @@ export async function createPayment(form) {
 
     state.user = await api("/user/me");
     updatePanel("#profile-invoices", renderProfileInvoicesList());
-    showFeedback("#profile-invoices-feedback", ui.status("Счёт создан, открыта страница оплаты"));
+    updatePanel("#profile-invoices-feedback", ui.status("Счёт создан, открыта страница оплаты"));
   });
 }
