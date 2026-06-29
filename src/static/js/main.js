@@ -38,7 +38,7 @@ async function submitCreateUser(form) {
         flow: data.flow,
         limit_ips: toNumber(data.limit_ips),
         total_gb: toNumber(data.total_gb),
-        expiry_time_days: toNumber(data.expiry_time_days),
+        expiry_time_days: toNumber(data.expiry_time_days) || state.config?.defaultExpiryTimeDays || 30,
         enable: true,
       }),
     });

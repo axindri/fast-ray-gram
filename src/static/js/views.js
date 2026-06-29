@@ -1,8 +1,22 @@
-import { api, handleApiError, isInvalidToken, loadAppConfig, logoutToLogin, onLogout } from "./api.js";
+import { api, handleApiError, isInvalidToken, isUnauthorized, loadAppConfig, logoutToLogin, onLogout } from "./api.js";
 import { clampPage, emptyPagination, normalizePaginated } from "./pagination.js";
 import { pickQuote, renderQuote } from "./quotes.js";
 import { state } from "./state.js";
-import { formatDate, formData, getStatusServices, isPaymentBlocked, renderPayControl, renderStatusBanner, shell, showFeedback, toNumber, ui, updatePanel, updatePaymentFormState, withBusy } from "./ui.js";
+import {
+  formatDate,
+  formData,
+  getStatusServices,
+  isPaymentBlocked,
+  renderPayControl,
+  renderStatusBanner,
+  shell,
+  showFeedback,
+  toNumber,
+  ui,
+  updatePanel,
+  updatePaymentFormState,
+  withBusy,
+} from "./ui.js";
 
 function displayName(username = "") {
   if (!username) {
@@ -65,11 +79,11 @@ export async function renderLogin(message = "") {
       ${ui.card(
         "Вход",
         `<form class="form" data-form="login">
-          ${ui.field("token", "Bearer token", "password", state.token, "autocomplete='current-password'")}
+          ${ui.field("token", "Авторизационный токен", "password", state.token, "autocomplete='current-password'")}
           <button class="btn primary" type="submit">Войти</button>
           ${message ? ui.apiError(message) : ""}
         </form>`,
-        "Вставьте ваш авторизационный токен",
+        "Для получения авторизационного токена, обратитесь к администратору",
       )}
       ${ui.card("На сегодня", renderQuote(pickQuote()))}
     </div>
@@ -81,17 +95,16 @@ export async function renderDashboard() {
 
   state.statusLoading = true;
 
-  const blocks = [welcomeBlock()];
+  const groups = buildDashboardGroups();
 
-  if (state.user?.role !== "superuser") {
-    blocks.push(profileInvoicesBlock());
-  }
-
-  if (state.isAdmin) {
-    blocks.push(adminLinksBlock(), statusBlock(), invoicesBlock(), allInvoicesBlock(), adminCreateUserBlock(), adminUserManageBlock(), xuiBlock());
-  }
-
-  shell(`<div class="grid">${blocks.join("")}</div>`);
+  shell(`
+    <div class="dashboard-layout">
+      ${renderDashboardNav(groups)}
+      <div class="dashboard-content">
+        ${renderDashboardGroups(groups)}
+      </div>
+    </div>
+  `);
   updatePaymentFormState();
 
   requestAnimationFrame(() => {
@@ -104,6 +117,51 @@ export async function renderDashboard() {
       }
     }, 0);
   });
+}
+
+function buildDashboardGroups() {
+  const groups = [{ id: "home", title: "Главная", items: [welcomeBlock()] }];
+
+  if (state.user?.role !== "superuser") {
+    groups.push({ id: "payments", title: "Платежи", items: [profileInvoicesBlock()] });
+  }
+
+  if (state.isAdmin) {
+    groups.push(
+      { id: "panels", title: "Панели", items: [adminLinksBlock()] },
+      { id: "monitoring", title: "Мониторинг", items: [statusBlock()] },
+      { id: "invoices", title: "Инвойсы", items: [invoicesBlock(), allInvoicesBlock()] },
+      { id: "users", title: "Пользователи", items: [adminCreateUserBlock(), adminUserManageBlock()] },
+      { id: "xui", title: "XUI", items: [xuiBlock()] },
+    );
+  }
+
+  return groups;
+}
+
+function renderDashboardNav(groups) {
+  return `
+    <nav class="dashboard-nav" aria-label="Разделы">
+      ${groups.map((group) => `<a class="dashboard-nav-link" href="#group-${group.id}">${group.title}</a>`).join("")}
+    </nav>
+  `;
+}
+
+function renderDashboardGroups(groups) {
+  return groups
+    .map((group) => {
+      const gridClass = group.items.length === 1 ? "dashboard-group-grid dashboard-group-grid--single" : "dashboard-group-grid";
+
+      return `
+        <section class="dashboard-group" id="group-${group.id}">
+          <h2 class="dashboard-group-title">${group.title}</h2>
+          <div class="${gridClass}">
+            ${group.items.join("")}
+          </div>
+        </section>
+      `;
+    })
+    .join("");
 }
 
 function welcomeBlock() {
@@ -280,14 +338,14 @@ function adminCreateUserBlock() {
   return ui.card(
     "Создать пользователя",
     `<form class="form" data-form="create-user">
-      ${ui.field("username", "Username")}
+      ${ui.field("username", "Username", "text", "", 'placeholder="user@example.com"')}
       ${ui.select("role", "Роль", ["user", "admin"])}
-      ${ui.field("mark", "Заметка")}
-      ${ui.field("flow", "Flow")}
+      ${ui.field("mark", "Заметка", "text", "", 'placeholder="Заметка или комментарий"')}
+      ${ui.field("flow", "Flow", "text", "", 'placeholder="xtls-rprx-vision"')}
       <div class="row">
-        ${ui.field("limit_ips", "Лимит IP", "number", "0")}
-        ${ui.field("total_gb", "Объем трафика", "number", "0")}
-        ${ui.field("expiry_time_days", "Срок действия", "number", String(expiryDays))}
+        ${ui.field("limit_ips", "Лимит IP", "number", "", 'placeholder="0"')}
+        ${ui.field("total_gb", "Объем трафика", "number", "", 'placeholder="0"')}
+        ${ui.field("expiry_time_days", "Срок действия", "number", "", `placeholder="${expiryDays}"`)}
       </div>
       <button class="btn primary" type="submit">Создать</button>
     </form>`,
@@ -300,7 +358,7 @@ function adminUserManageBlock() {
   return ui.card(
     "Пользователь по ID",
     `<form class="form" data-form="user-actions">
-      ${ui.field("id", "User ID", "number")}
+      ${ui.field("id", "User ID", "number", "", 'placeholder="1"')}
       <div class="row">
         <button class="btn ghost" name="action" value="get" type="submit">Получить</button>
         <button class="btn ghost" name="action" value="refresh" type="submit">Обновить токен</button>
@@ -401,7 +459,9 @@ export function renderStatus() {
     return `<p class="muted">Загружаю статус...</p>`;
   }
 
-  return getStatusServices().map(({ name, item }) => ui.service(name, item)).join("");
+  return getStatusServices()
+    .map(({ name, item }) => ui.service(name, item))
+    .join("");
 }
 
 export async function loadStatus({ quiet = false, poll = false } = {}) {
@@ -425,7 +485,7 @@ export async function loadStatus({ quiet = false, poll = false } = {}) {
         updatePanel("#status-content", renderStatus());
       }
     } catch (error) {
-      if (isInvalidToken(error)) {
+      if (isUnauthorized(error)) {
         stopStatusPolling();
         logoutToLogin(error.message);
         return;
@@ -440,8 +500,10 @@ export async function loadStatus({ quiet = false, poll = false } = {}) {
       if (!silent) {
         state.statusLoading = false;
       }
-      renderStatusBanner();
-      updatePaymentFormState();
+      if (state.token) {
+        renderStatusBanner();
+        updatePaymentFormState();
+      }
     }
   };
 

@@ -71,6 +71,10 @@ export function isInvalidToken(error) {
     .includes("invalid token");
 }
 
+export function isUnauthorized(error) {
+  return error?.status === 401 || isInvalidToken(error);
+}
+
 export function logoutToLogin(message = "Сессия истекла, войдите заново") {
   localStorage.removeItem(storageKey);
   state.token = "";
@@ -84,7 +88,7 @@ export function logoutToLogin(message = "Сессия истекла, войди
 }
 
 export function handleApiError(error, footerSelector) {
-  if (isInvalidToken(error)) {
+  if (isUnauthorized(error)) {
     logoutToLogin(error.message);
     return;
   }
@@ -108,7 +112,9 @@ export async function api(path, options = {}) {
 
   if (!response.ok) {
     const message = formatApiMessage(data, response.statusText);
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   return data;

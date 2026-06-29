@@ -63,10 +63,11 @@ export function shell(content) {
       </nav>
       <div id="status-banner" class="status-banner" role="status"></div>
       ${content}
+      ${state.token ? `
       <footer class="app-footer">
         <div class="app-version" id="app-version"></div>
-        ${state.token ? ui.button("Выйти", "logout", "danger") : ""}
-      </footer>
+        ${ui.button("Выйти", "logout", "danger")}
+      </footer>` : ""}
     </div>
   `;
 
@@ -165,6 +166,13 @@ export function updatePaymentFormState() {
 export function renderStatusBanner() {
   const banner = document.querySelector("#status-banner");
   if (!banner) {
+    return;
+  }
+
+  if (!state.token) {
+    banner.textContent = "";
+    banner.classList.remove("is-visible");
+    updatePaymentFormState();
     return;
   }
 
