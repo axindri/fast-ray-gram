@@ -1,0 +1,76 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.deps import get_current_user, require_roles
+from src.core.enums import Role
+from src.models.tw import InvoiceResponse
+from src.models.users import AdminUserResponse, CreateUserRequest
+from src.models.xui import UpdateClientRequest
+from src.schemas.users import User
+from src.services.db import get_db
+from src.services.tw import TimeWebService, get_timeweb_service
+from src.services.users import UserService, get_user_service
+from src.services.xui import XuiService, get_xui_service
+
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_roles(Role.SUPERUSER, Role.ADMIN))])
+
+
+@router.post("/users/create")
+async def create_user(
+    new_user: CreateUserRequest,
+    db: AsyncSession = Depends(get_db),
+    user_service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
+) -> str:
+    if new_user.role == Role.SUPERUSER:
+        raise HTTPException(status_code=400, detail="Superuser cannot be created")
+    if current_user.role == Role.ADMIN and new_user.role == Role.ADMIN:
+        raise HTTPException(status_code=400, detail="Admin cannot create another admin")
+    return await user_service.create(db, new_user)
+
+
+@router.post("/users/{id}/refresh-token")
+async def refresh_token(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user_service: UserService = Depends(get_user_service),
+) -> str:
+    return await user_service.refresh_token(db, id)
+
+
+@router.get("/users/get/{id}")
+async def get_user(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user_service: UserService = Depends(get_user_service),
+) -> AdminUserResponse:
+    user = await user_service.get_by_id(db, id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return AdminUserResponse.model_validate(user)
+
+
+@router.delete("/users/delete/{id}")
+async def delete_user(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user_service: UserService = Depends(get_user_service),
+) -> None:
+    return await user_service.delete(db, id)
+
+
+@router.get("/invoices/check")
+async def check_invoices(
+    db: AsyncSession = Depends(get_db),
+    tw_service: TimeWebService = Depends(get_timeweb_service),
+    xui_service: XuiService = Depends(get_xui_service),
+    user_service: UserService = Depends(get_user_service),
+) -> list[InvoiceResponse]:
+    payed_invoices = await tw_service.check_invoices(db)
+    for invoice in payed_invoices:
+        user = await user_service.get_by_id(db, invoice.user_id)
+        if user is None:
+            continue
+        await xui_service.update_client_by_email(user.username, UpdateClientRequest(expiry_time_days=30, enable=True))
+        await xui_service.reset_client_traffic_by_email(user.username)
+    return payed_invoices
