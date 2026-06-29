@@ -1,3 +1,4 @@
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -16,5 +17,19 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     )
 
 
+async def http_exception_handler(request: Request, exc: httpx.ConnectTimeout) -> JSONResponse:
+    logger.exception(
+        "HTTP exception on %s %s: %s",
+        request.method,
+        request.url.path,
+        exc,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"},
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(Exception, unhandled_exception_handler)
+    app.add_exception_handler(httpx.ConnectTimeout, http_exception_handler)
