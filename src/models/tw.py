@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from src.core.settings import settings
+
 
 class FinancesResponse(BaseModel):
     balance: float
@@ -15,7 +17,11 @@ class FinancesResponse(BaseModel):
 
 
 class NewInvoiceRequest(BaseModel):
-    amount: int = Field(default=50, ge=50, le=1000)
+    amount: int = Field(
+        default=settings.app.min_invoice_amount,
+        ge=settings.app.min_invoice_amount,
+        le=settings.app.max_invoice_amount,
+    )
     return_url: str
     fail_url: str
 

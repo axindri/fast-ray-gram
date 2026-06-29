@@ -7,13 +7,13 @@ from src.core.settings import settings
 from src.services.tw import TimeWebService, get_timeweb_service
 from src.services.xui import XuiService, get_xui_service
 
-router = APIRouter(tags=["root"], dependencies=[Depends(require_roles(Role.SUPERUSER, Role.ADMIN))])
+router = APIRouter(prefix="/api", tags=["root"], dependencies=[Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))])
 
 
 logger = get_logger()
 
 
-@router.get("/")
+@router.get("/status")
 async def read_root(
     xui_service: XuiService = Depends(get_xui_service),
     timeweb_service: TimeWebService = Depends(get_timeweb_service),

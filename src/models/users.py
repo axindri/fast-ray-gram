@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
 from src.core.enums import Role
+from src.core.settings import settings
 from src.models.tw import InvoiceResponse
 
 
@@ -12,7 +13,7 @@ class CreateUserRequest(BaseModel):
     limit_ips: int = Field(default=0)
     total_gb: float = Field(default=0)
     enable: bool = Field(default=True)
-    expiry_time_days: int = Field(default=0)
+    expiry_time_days: int = Field(default=settings.app.default_expiry_time_days)
 
 
 class UserProfileResponse(BaseModel):

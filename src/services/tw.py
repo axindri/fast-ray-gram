@@ -118,21 +118,32 @@ class TimeWebService:
         payments = await self.get_payments()
         logger.debug(f"Found payments: {payments}")
         payed_invoices = []
+
+        db_invoices = await db.execute(
+            select(Invoice).where(
+                Invoice.status == InvoiceStatus.PENDING, Invoice.created_at < datetime.now() - timedelta(hours=1)
+            )
+        )
+        db_invoices = db_invoices.scalars().all()
+        for invoice in db_invoices:
+            invoice.status = InvoiceStatus.CANCELLED
+            logger.debug(f"Set invoice {invoice.invoice_id} status to CANCELLED")
+            await db.commit()
+
         for payment in payments:
             invoice = await db.execute(select(Invoice).where(Invoice.invoice_id == payment.invoice))
             invoice = invoice.scalar_one_or_none()
             if invoice is not None:
-                if invoice.created_at < datetime.now() - timedelta(hours=1):
-                    invoice.status = InvoiceStatus.CANCELLED
-                    await db.commit()
-                    logger.debug(f"Cancelled invoice {invoice.invoice_id} because it was created more than 1 hour ago")
-                    continue
                 invoice.status = InvoiceStatus.PAID
                 logger.debug(f"Set invoice {invoice.invoice_id} status to PAID")
                 await db.commit()
                 payed_invoices.append(invoice)
 
         return [InvoiceResponse.model_validate(invoice) for invoice in payed_invoices]
+
+    async def list_recent_invoices(self, db: AsyncSession, limit: int = 100) -> list[InvoiceResponse]:
+        result = await db.execute(select(Invoice).order_by(Invoice.created_at.desc()).limit(limit))
+        return [InvoiceResponse.model_validate(invoice) for invoice in result.scalars().all()]
 
 
 async def get_timeweb_service() -> TimeWebService:

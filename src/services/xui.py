@@ -20,7 +20,7 @@ class XuiService:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
         }
-        response = await AsyncClient(timeout=self.timeout).get(f"{self.url}/panel/api/server/status", headers=headers)
+        response = await AsyncClient(timeout=2).get(f"{self.url}/panel/api/server/status", headers=headers)
         response.raise_for_status()
         data = response.json()
         logger.debug(f"XUI status data: {data}")

@@ -27,8 +27,8 @@ async def get_current_user(
         if credentials.credentials == settings.app.superuser_token:
             user = User(
                 id=0,
-                username="superuser",
-                role=Role.SUPERUSER.value,
+                username=Role.SUPERUSER,
+                role=Role.SUPERUSER,
                 token_position=0,
                 mark="",
             )

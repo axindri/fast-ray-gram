@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.deps import get_current_user, require_roles
 from src.core.enums import Role
+from src.core.settings import settings
 from src.models.tw import InvoiceResponse
 from src.models.users import AdminUserResponse, CreateUserRequest
 from src.models.xui import UpdateClientRequest
@@ -59,6 +60,14 @@ async def delete_user(
     return await user_service.delete(db, id)
 
 
+@router.get("/invoices")
+async def list_invoices(
+    db: AsyncSession = Depends(get_db),
+    tw_service: TimeWebService = Depends(get_timeweb_service),
+) -> list[InvoiceResponse]:
+    return await tw_service.list_recent_invoices(db)
+
+
 @router.get("/invoices/check")
 async def check_invoices(
     db: AsyncSession = Depends(get_db),
@@ -71,6 +80,9 @@ async def check_invoices(
         user = await user_service.get_by_id(db, invoice.user_id)
         if user is None:
             continue
-        await xui_service.update_client_by_email(user.username, UpdateClientRequest(expiry_time_days=30, enable=True))
+        await xui_service.update_client_by_email(
+            user.username,
+            UpdateClientRequest(expiry_time_days=settings.app.default_expiry_time_days, enable=True),
+        )
         await xui_service.reset_client_traffic_by_email(user.username)
     return payed_invoices

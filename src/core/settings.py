@@ -10,10 +10,13 @@ class AppSettings(BaseModel):
     host: str = Field(default="0.0.0.0")
     port: int = Field(default=8000)
     debug: bool = Field(default=False)
-    request_timeout: int = Field(default=100)
+    request_timeout: int = Field(default=10)
     jwt_secret: str = Field(default="jwt_secret")
     jwt_exp_days: int = Field(default=365)
     superuser_token: str = Field(default="superuser_token")
+    min_invoice_amount: int = Field(default=100)
+    max_invoice_amount: int = Field(default=1000)
+    default_expiry_time_days: int = Field(default=30)
 
 
 class DatabaseSettings(BaseModel):

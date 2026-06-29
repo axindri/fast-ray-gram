@@ -1,8 +1,12 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from src.api.admin import router as admin_router
+from src.api.meta import router as meta_router
+from src.api.frontend import router as frontend_router
 from src.api.root import router as root_router
 from src.api.tw import router as tw_router
 from src.api.user import router as user_router
@@ -30,6 +34,10 @@ app = FastAPI(
 
 register_exception_handlers(app)
 
+static_dir = Path(__file__).resolve().parent / "src" / "static"
+app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
+app.include_router(meta_router)
+app.include_router(frontend_router)
 app.include_router(root_router)
 app.include_router(admin_router)
 app.include_router(user_router)
