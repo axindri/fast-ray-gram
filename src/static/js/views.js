@@ -62,7 +62,7 @@ function welcomeContent(quote = pickQuote()) {
         ${showRole ? `<p class="welcome-role">${roleLabel(role)}</p>` : ""}
       </div>
       ${renderQuote(quote)}
-      ${subUrl ? ui.readonly("Ссылка подписки", subUrl) : ""}
+      ${subUrl ? ui.readonly("Ссылка подписки", subUrl, true) : ""}
     </div>
   `;
 }

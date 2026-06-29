@@ -29,11 +29,11 @@ export const ui = {
       <input class="input" name="${name}" type="${type}" value="${value}" ${extra} />
     </label>
   `,
-  readonly: (label, value) => `
+  readonly: (label, value, highlight = false) => `
     <label class="field">
       <span>${label}</span>
       <div class="copy-field">
-        <input class="input" value="${escapeHtml(value)}" readonly />
+        <input class="input${highlight ? " input--highlight" : ""}" value="${escapeHtml(value)}" readonly />
         <button class="btn ghost" data-copy type="button">Скопировать</button>
       </div>
     </label>
