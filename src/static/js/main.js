@@ -1,4 +1,4 @@
-import { api, handleApiError, isUnauthorized, logoutToLogin, onLogout } from "./api.js";
+import { api, buildAuthLink, clearAuth, handleApiError, isUnauthorized, logoutToLogin, onLogout } from "./api.js";
 import { app, state, storageKey } from "./state.js";
 import {
   formatDate,
@@ -11,7 +11,7 @@ import {
   withBusy,
 } from "./ui.js";
 import { emptyPagination } from "./pagination.js";
-import { checkInvoices, createPayment, loadAllInvoices, loadStatus, refreshProfile, renderDashboard, renderLogin } from "./views.js";
+import { checkInvoices, createPayment, loadAllInvoices, loadStatus, refreshProfile, renderDashboard, renderLogin, stopStatusPolling } from "./views.js";
 
 onLogout(renderLogin);
 
@@ -46,6 +46,18 @@ const actionFeedback = {
   "invoices-prev": "#all-invoices-feedback",
   "invoices-next": "#all-invoices-feedback",
 };
+
+function renderUserAuthLink(token) {
+  return ui.authLinkResult(buildAuthLink(token));
+}
+
+function flashButtonLabel(button, label, duration = 1800) {
+  const originalText = button.textContent;
+  button.textContent = label;
+  setTimeout(() => {
+    button.textContent = originalText;
+  }, duration);
+}
 
 async function login(token) {
   state.token = token;
@@ -106,15 +118,17 @@ async function submitUserActions(form, submitter) {
     resetDeleteConfirm(form);
 
     if (action === "refresh") {
-      updatePanel("#user-manage-feedback", ui.readonly("Новый токен", result));
+      updatePanel("#user-manage-auth-link", renderUserAuthLink(result));
       return;
     }
 
     if (action === "delete") {
+      updatePanel("#user-manage-auth-link", "");
       updatePanel("#user-manage-feedback", ui.status("Пользователь удалён"));
       return;
     }
 
+    updatePanel("#user-manage-auth-link", "");
     updatePanel(
       "#user-manage-feedback",
       `<div class="item"><b>${result.username}</b><span>ID: ${result.id} · ${result.role}</span></div>`,
@@ -188,19 +202,29 @@ async function handleForm(event) {
 }
 
 async function handleAction(event) {
-  if ("copy" in event.target.dataset) {
-    const button = event.target;
-    const copyText = button.closest(".copy-field")?.querySelector("input")?.value || "";
-    await navigator.clipboard.writeText(copyText);
-    const originalText = button.textContent;
-    button.textContent = "Скопировано!";
-    setTimeout(() => {
-      button.textContent = originalText;
-    }, 1800);
+  const button = event.target.closest("button");
+  if (!button) {
     return;
   }
 
-  const action = event.target.dataset.action;
+  if ("copy" in button.dataset) {
+    const copyText = button.closest(".copy-field")?.querySelector("input")?.value || "";
+    await navigator.clipboard.writeText(copyText);
+    flashButtonLabel(button, "Скопировано!");
+    return;
+  }
+
+  if ("copyAuthLink" in button.dataset) {
+    const link = button.closest(".auth-link-result")?.querySelector("[data-auth-link]")?.value || "";
+    if (!link) {
+      return;
+    }
+    await navigator.clipboard.writeText(link);
+    flashButtonLabel(button, "Скопировано!");
+    return;
+  }
+
+  const action = button.dataset.action;
   const handler = action && actionHandlers[action];
   if (!handler) {
     return;
@@ -224,17 +248,45 @@ async function handleAction(event) {
 app.addEventListener("submit", handleForm);
 app.addEventListener("click", handleAction);
 
-async function boot() {
-  if (state.token) {
-    try {
-      await login(state.token);
-    } catch (error) {
-      if (isUnauthorized(error)) {
-        logoutToLogin(error.message);
-        return;
-      }
-      await renderLogin(error.message);
+function parseAuthTokenFromUrl() {
+  return new URLSearchParams(window.location.search).get("authToken")?.trim() || "";
+}
+
+function stripAuthTokenFromUrl() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("authToken")) {
+    return;
+  }
+
+  url.searchParams.delete("authToken");
+  const query = url.searchParams.toString();
+  window.history.replaceState({}, "", `${url.pathname}${query ? `?${query}` : ""}${url.hash}`);
+}
+
+async function loginWithErrorHandling(token) {
+  try {
+    await login(token);
+  } catch (error) {
+    if (isUnauthorized(error)) {
+      clearAuth();
     }
+    await renderLogin(error.message);
+  }
+}
+
+async function boot() {
+  const urlToken = parseAuthTokenFromUrl();
+
+  if (urlToken) {
+    stopStatusPolling();
+    clearAuth();
+    stripAuthTokenFromUrl();
+    await loginWithErrorHandling(urlToken);
+    return;
+  }
+
+  if (state.token) {
+    await loginWithErrorHandling(state.token);
     return;
   }
 

@@ -1,6 +1,14 @@
 import { app, state } from "./state.js";
 import { initFooterOneko } from "./oneko-header.js";
 
+export function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 export const ui = {
   button: (text, action, kind = "primary") => `<button class="btn ${kind}" data-action="${action}" type="button">${text}</button>`,
   card: (title, body, hint = "", footerId = "") => `
@@ -25,10 +33,22 @@ export const ui = {
     <label class="field">
       <span>${label}</span>
       <div class="copy-field">
-        <input class="input" value="${value}" readonly />
+        <input class="input" value="${escapeHtml(value)}" readonly />
         <button class="btn ghost" data-copy type="button">Скопировать</button>
       </div>
     </label>
+  `,
+  authLinkResult: (link) => `
+    <div class="stack auth-link-result">
+      <label class="field">
+        <span>Ссылка для входа</span>
+        <input class="input" value="${escapeHtml(link)}" readonly data-auth-link />
+      </label>
+      <div class="row">
+        <button class="btn ghost" type="button" data-copy-auth-link>Скопировать</button>
+        <a class="btn primary" href="${escapeHtml(link)}">Авторизоваться</a>
+      </div>
+    </div>
   `,
   select: (name, label, options) => `
     <label class="field">

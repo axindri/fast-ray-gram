@@ -350,12 +350,13 @@ function adminUserManageBlock() {
     "Пользователь по ID",
     `<form class="form" data-form="user-actions">
       ${ui.field("id", "User ID", "number", "", 'placeholder="1"')}
-      <div class="row">
+      <div class="row wrap">
         <button class="btn ghost" name="action" value="get" type="submit">Получить</button>
         <button class="btn ghost" name="action" value="refresh" type="submit">Обновить токен</button>
         <button class="btn danger" name="action" value="delete" type="submit">Удалить</button>
       </div>
-    </form>`,
+    </form>
+    <div id="user-manage-auth-link" class="stack"></div>`,
     "Получение, refresh token и удаление",
     "user-manage-feedback",
   );

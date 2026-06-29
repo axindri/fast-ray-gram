@@ -62,7 +62,15 @@ export function isUnauthorized(error) {
   return error?.status === 401 || isInvalidToken(error);
 }
 
-export function logoutToLogin(message = "Сессия истекла, войдите заново") {
+export function buildAuthLink(token = state.token) {
+  const url = new URL("/", window.location.origin);
+  if (token) {
+    url.searchParams.set("authToken", token);
+  }
+  return url.toString();
+}
+
+export function clearAuth() {
   localStorage.removeItem(storageKey);
   state.token = "";
   state.user = null;
@@ -71,6 +79,11 @@ export function logoutToLogin(message = "Сессия истекла, войди
   state.statusLoading = false;
   state.checkedInvoices = null;
   state.allInvoices = emptyPagination();
+  state.adminLinks = null;
+}
+
+export function logoutToLogin(message = "Сессия истекла, войдите заново") {
+  clearAuth();
   logoutHandler(message);
 }
 
