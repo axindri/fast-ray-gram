@@ -7,7 +7,9 @@ from src.core.settings import settings
 from src.services.tw import TimeWebService, get_timeweb_service
 from src.services.xui import XuiService, get_xui_service
 
-router = APIRouter(prefix="/api", tags=["root"], dependencies=[Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))])
+router = APIRouter(
+    prefix="/api", tags=["root"], dependencies=[Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))]
+)
 
 
 logger = get_logger()
@@ -37,12 +39,22 @@ async def read_root(
             "version": settings.app.version,
             "status": ServiceStatus.OK,
         },
-        "XUI": {
+        "XUI-Panel": {
             "version": xui_version,
             "status": xui_status,
         },
-        "TimeWeb": {
+        "TimeWeb-API": {
             "status": timeweb_status,
         },
         "avilable_statuses": list(ServiceStatus),
+    }
+
+
+@router.get("/config")
+async def app_config() -> dict[str, str | int]:
+    return {
+        "version": settings.app.version,
+        "min_invoice_amount": settings.app.min_invoice_amount,
+        "max_invoice_amount": settings.app.max_invoice_amount,
+        "default_expiry_time_days": settings.app.default_expiry_time_days,
     }

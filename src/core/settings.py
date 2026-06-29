@@ -32,6 +32,7 @@ class XuiPanelSettings(BaseModel):
 class TimeWebSettings(BaseModel):
     base_url: str = Field(default="https://api.timeweb.cloud/api/v1")
     portal_url: str = Field(default="https://timeweb.cloud/portal/v4")
+    servers_url: str = Field(default="https://timeweb.cloud/my/servers")
     api_url: str = Field(default="https://timeweb.cloud/api/v1")
     token: str = Field(default="")
     payer_id: int = Field(default=0)

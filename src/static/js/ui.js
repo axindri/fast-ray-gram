@@ -79,20 +79,27 @@ export function shell(content) {
   renderStatusBanner();
 }
 
-const serviceLabels = {
-  API: "API",
-  XUI: "XUI",
-  TimeWeb: "TimeWeb",
-};
+const STATUS_META_KEYS = new Set(["avilable_statuses", "available_statuses"]);
+
+export function getStatusServices(status = state.status) {
+  if (!status) {
+    return [];
+  }
+
+  return Object.entries(status)
+    .filter(
+      ([key, item]) =>
+        !STATUS_META_KEYS.has(key) && item && typeof item === "object" && "status" in item,
+    )
+    .map(([name, item]) => ({ name, item }));
+}
 
 export function hasServiceIssues() {
   if (!state.status) {
     return false;
   }
 
-  return Object.keys(serviceLabels).some(
-    (key) => String(state.status[key]?.status || "").toLowerCase() !== "ok",
-  );
+  return getStatusServices().some(({ item }) => String(item.status || "").toLowerCase() !== "ok");
 }
 
 export function isPaymentBlocked() {
@@ -122,40 +129,17 @@ export function updateInvoicePayButtons() {
   });
 }
 
-const paymentFormHintMessages = {
-  loading: "Загружаем статус сервисов...",
-  failed: "Не удалось проверить статус сервисов. Платёж недоступен.",
-  blocked: "Платёж недоступен: есть проблемы с сервисами.",
-};
-
-const invoicePayHintMessages = {
-  loading: "Оплатить счета нельзя — загружаем статус сервисов.",
-  failed: "Оплатить счета нельзя — не удалось проверить статус сервисов.",
-  blocked: "Оплатить счета нельзя, пока есть проблемы с сервисами.",
-};
-
-function fillPaymentHint(hint, messages) {
+function updatePaymentFormHint() {
+  const hint = document.querySelector("#payment-status-hint");
   if (!hint) {
     return;
   }
 
-  hint.classList.remove("is-loading", "is-blocked", "hide");
+  hint.classList.remove("is-loading", "hide");
 
   if (state.statusLoading) {
-    hint.textContent = messages.loading;
+    hint.textContent = "Загружаем статус сервисов...";
     hint.classList.add("is-loading");
-    return;
-  }
-
-  if (!state.status) {
-    hint.textContent = messages.failed;
-    hint.classList.add("is-blocked");
-    return;
-  }
-
-  if (hasServiceIssues()) {
-    hint.textContent = messages.blocked;
-    hint.classList.add("is-blocked");
     return;
   }
 
@@ -167,7 +151,6 @@ export function updatePaymentFormState() {
   updateInvoicePayButtons();
 
   const form = document.querySelector('[data-form="new-payment"]');
-  const formHint = document.querySelector("#payment-status-hint");
 
   if (form) {
     const blocked = isPaymentBlocked();
@@ -176,11 +159,7 @@ export function updatePaymentFormState() {
     });
   }
 
-  fillPaymentHint(formHint, paymentFormHintMessages);
-
-  document.querySelectorAll("[data-invoice-pay-hint]").forEach((hint) => {
-    fillPaymentHint(hint, invoicePayHintMessages);
-  });
+  updatePaymentFormHint();
 }
 
 export function renderStatusBanner() {
@@ -189,16 +168,25 @@ export function renderStatusBanner() {
     return;
   }
 
-  if (state.statusLoading || !state.status) {
+  if (state.statusLoading) {
     banner.textContent = "";
     banner.classList.remove("is-visible");
     updatePaymentFormState();
     return;
   }
 
-  const issues = Object.entries(serviceLabels)
-    .filter(([key]) => String(state.status?.[key]?.status || "").toLowerCase() !== "ok")
-    .map(([, label]) => label);
+  if (!state.status) {
+    banner.textContent = "Внимание: не удалось проверить статус сервисов. Создание и оплата счетов недоступны.";
+    requestAnimationFrame(() => {
+      banner.classList.add("is-visible");
+    });
+    updatePaymentFormState();
+    return;
+  }
+
+  const issues = getStatusServices()
+    .filter(({ item }) => String(item.status || "").toLowerCase() !== "ok")
+    .map(({ name }) => name);
 
   if (!issues.length) {
     banner.textContent = "";
@@ -207,7 +195,7 @@ export function renderStatusBanner() {
     return;
   }
 
-  banner.textContent = `Внимание: проблемы с сервисами — ${issues.join(", ")}`;
+  banner.textContent = `Внимание: проблемы с сервисами — ${issues.join(", ")}. Создание и оплата счетов недоступны.`;
   requestAnimationFrame(() => {
     banner.classList.add("is-visible");
   });

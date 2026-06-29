@@ -39,6 +39,20 @@ class InvoiceResponse(BaseModel):
         from_attributes = True
 
 
+class AdminInvoiceResponse(BaseModel):
+    invoice_id: int
+    user_id: int
+    username: str = ""
+    mark: str = ""
+    sub_url: str = ""
+    payment_uuid: str
+    confirmation_url: str
+    amount: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class PaymentResponse(BaseModel):
     date: datetime
     description: str

@@ -1,15 +1,18 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from math import ceil
+
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.enums import InvoiceStatus, ServiceStatus
 from src.core.logger import logger
 from src.core.settings import settings
-from src.models.tw import FinancesResponse, InvoiceResponse, PaymentResponse
+from src.models.tw import AdminInvoiceResponse, FinancesResponse, InvoiceResponse, PaymentResponse
 from src.schemas.invoices import Invoice
+from src.schemas.users import User
 
 
 @dataclass
@@ -141,9 +144,39 @@ class TimeWebService:
 
         return [InvoiceResponse.model_validate(invoice) for invoice in payed_invoices]
 
-    async def list_recent_invoices(self, db: AsyncSession, limit: int = 100) -> list[InvoiceResponse]:
-        result = await db.execute(select(Invoice).order_by(Invoice.created_at.desc()).limit(limit))
-        return [InvoiceResponse.model_validate(invoice) for invoice in result.scalars().all()]
+    async def list_invoices(
+        self, db: AsyncSession, page: int = 1, limit: int = 20
+    ) -> tuple[list[AdminInvoiceResponse], int, int]:
+        total_result = await db.execute(select(func.count()).select_from(Invoice))
+        total = total_result.scalar_one()
+        pages = max(1, ceil(total / limit)) if total else 1
+        page = min(max(page, 1), pages)
+        offset = (page - 1) * limit
+        result = await db.execute(
+            select(Invoice, User.username, User.mark, User.sub_url)
+            .outerjoin(User, Invoice.user_id == User.id)
+            .order_by(Invoice.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+
+        items = [
+            AdminInvoiceResponse(
+                invoice_id=invoice.invoice_id,
+                user_id=invoice.user_id,
+                username=username or "",
+                mark=mark or "",
+                sub_url=sub_url or "",
+                payment_uuid=invoice.payment_uuid,
+                confirmation_url=invoice.confirmation_url,
+                amount=invoice.amount,
+                status=invoice.status,
+                created_at=invoice.created_at,
+                updated_at=invoice.updated_at,
+            )
+            for invoice, username, mark, sub_url in result.all()
+        ]
+        return items, total, page
 
 
 async def get_timeweb_service() -> TimeWebService:

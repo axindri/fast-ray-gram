@@ -1,3 +1,4 @@
+import { emptyPagination } from "./pagination.js";
 import { state, storageKey } from "./state.js";
 import { showFeedback, ui } from "./ui.js";
 
@@ -5,6 +6,15 @@ let logoutHandler = () => {};
 
 export function onLogout(handler) {
   logoutHandler = handler;
+}
+
+function mapAppConfig(data, defaults) {
+  return {
+    version: data.version || "",
+    minInvoiceAmount: data.min_invoice_amount ?? defaults.minInvoiceAmount,
+    maxInvoiceAmount: data.max_invoice_amount ?? defaults.maxInvoiceAmount,
+    defaultExpiryTimeDays: data.default_expiry_time_days ?? defaults.defaultExpiryTimeDays,
+  };
 }
 
 export async function loadAppConfig() {
@@ -16,19 +26,14 @@ export async function loadAppConfig() {
   };
 
   try {
-    const response = await fetch("/api/config");
-    if (!response.ok) {
+    const data = state.token ? await api("/api/config") : await fetch("/api/config").then(async (response) => (response.ok ? response.json() : null));
+
+    if (!data) {
       state.config = defaults;
       return state.config;
     }
 
-    const data = await response.json();
-    state.config = {
-      version: data.version || "",
-      minInvoiceAmount: data.min_invoice_amount ?? defaults.minInvoiceAmount,
-      maxInvoiceAmount: data.max_invoice_amount ?? defaults.maxInvoiceAmount,
-      defaultExpiryTimeDays: data.default_expiry_time_days ?? defaults.defaultExpiryTimeDays,
-    };
+    state.config = mapAppConfig(data, defaults);
   } catch {
     state.config = defaults;
   }
@@ -74,7 +79,7 @@ export function logoutToLogin(message = "Сессия истекла, войди
   state.status = null;
   state.statusLoading = false;
   state.checkedInvoices = null;
-  state.allInvoices = null;
+  state.allInvoices = emptyPagination();
   logoutHandler(message);
 }
 

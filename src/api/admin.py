@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.deps import get_current_user, require_roles
 from src.core.enums import Role
 from src.core.settings import settings
-from src.models.tw import InvoiceResponse
+from src.models.common import PaginatedResponse, build_paginated_response
+from src.models.tw import AdminInvoiceResponse, InvoiceResponse
 from src.models.users import AdminUserResponse, CreateUserRequest
 from src.models.xui import UpdateClientRequest
 from src.schemas.users import User
@@ -14,6 +15,15 @@ from src.services.users import UserService, get_user_service
 from src.services.xui import XuiService, get_xui_service
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_roles(Role.SUPERUSER, Role.ADMIN))])
+
+
+@router.get("/links")
+async def admin_links() -> dict[str, str]:
+    return {
+        "swagger_url": "/docs",
+        "xui_panel_url": settings.xui.url,
+        "servers_url": settings.timeweb.servers_url,
+    }
 
 
 @router.post("/users/create")
@@ -62,10 +72,13 @@ async def delete_user(
 
 @router.get("/invoices")
 async def list_invoices(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     tw_service: TimeWebService = Depends(get_timeweb_service),
-) -> list[InvoiceResponse]:
-    return await tw_service.list_recent_invoices(db)
+) -> PaginatedResponse[AdminInvoiceResponse]:
+    items, total, page = await tw_service.list_invoices(db, page=page, limit=limit)
+    return build_paginated_response(items, total, page, limit)
 
 
 @router.get("/invoices/check")

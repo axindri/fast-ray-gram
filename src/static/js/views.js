@@ -1,7 +1,8 @@
-import { api, handleApiError, loadAppConfig } from "./api.js";
+import { api, handleApiError, isInvalidToken, loadAppConfig, logoutToLogin, onLogout } from "./api.js";
+import { clampPage, emptyPagination, normalizePaginated } from "./pagination.js";
 import { pickQuote, renderQuote } from "./quotes.js";
 import { state } from "./state.js";
-import { formatDate, formData, isPaymentBlocked, renderPayControl, renderStatusBanner, shell, showFeedback, toNumber, ui, updatePanel, updatePaymentFormState, withBusy } from "./ui.js";
+import { formatDate, formData, getStatusServices, isPaymentBlocked, renderPayControl, renderStatusBanner, shell, showFeedback, toNumber, ui, updatePanel, updatePaymentFormState, withBusy } from "./ui.js";
 
 function displayName(username = "") {
   if (!username) {
@@ -38,7 +39,25 @@ function welcomeContent(quote = pickQuote()) {
   `;
 }
 
+const STATUS_POLL_MS = 10_000;
+let statusPollTimer = null;
+
+export function stopStatusPolling() {
+  if (statusPollTimer !== null) {
+    clearInterval(statusPollTimer);
+    statusPollTimer = null;
+  }
+}
+
+export function startStatusPolling() {
+  stopStatusPolling();
+  statusPollTimer = setInterval(() => {
+    loadStatus({ poll: true });
+  }, STATUS_POLL_MS);
+}
+
 export async function renderLogin(message = "") {
+  stopStatusPolling();
   await loadAppConfig();
 
   shell(`
@@ -69,17 +88,19 @@ export async function renderDashboard() {
   }
 
   if (state.isAdmin) {
-    blocks.push(statusBlock(), invoicesBlock(), allInvoicesBlock(), adminCreateUserBlock(), adminUserManageBlock(), xuiBlock());
+    blocks.push(adminLinksBlock(), statusBlock(), invoicesBlock(), allInvoicesBlock(), adminCreateUserBlock(), adminUserManageBlock(), xuiBlock());
   }
 
   shell(`<div class="grid">${blocks.join("")}</div>`);
   updatePaymentFormState();
 
   requestAnimationFrame(() => {
-    setTimeout(() => {
-      loadStatus({ quiet: true });
+    setTimeout(async () => {
+      await loadStatus({ quiet: true });
+      startStatusPolling();
       if (state.isAdmin) {
         loadAllInvoices({ quiet: true });
+        loadAdminLinks({ quiet: true });
       }
     }, 0);
   });
@@ -119,8 +140,7 @@ function profileInvoicesBlock() {
         <p class="muted no-margin">История платежей и статусы</p>
         ${ui.button("Обновить", "refresh-profile", "ghost")}
       </div>
-      <p class="payment-hint is-loading" data-invoice-pay-hint>Оплатить счета нельзя — загружаем статус сервисов.</p>
-      <div id="profile-invoices" class="list">${renderProfileInvoicesList()}</div>
+      <div id="profile-invoices" class="list profile-invoices-scroll">${renderProfileInvoicesList()}</div>
     </div>`,
     "",
     "profile-invoices-feedback",
@@ -150,17 +170,108 @@ function invoicePaySlot(item) {
 }
 
 function invoiceItem(item, { admin = false } = {}) {
+  const userBlock = admin
+    ? `
+      <span>Пользователь: ${item.username || `ID ${item.user_id}`}</span>
+      ${item.mark ? `<span>Заметка: ${item.mark}</span>` : ""}
+      ${item.sub_url ? `<a class="invoice-sub-link" href="${item.sub_url}" target="_blank" rel="noreferrer">Ссылка подписки</a>` : ""}
+      ${item.amount != null ? `<span>Сумма: ${item.amount} ₽</span>` : ""}
+    `
+    : "";
+
   return `
     <div class="item invoice">
       <div class="row between">
         <b>#${item.invoice_id}</b>
         ${invoiceStatusPill(item.status)}
       </div>
-      ${admin ? `<span>User ID: ${item.user_id}</span>` : ""}
+      ${userBlock}
       <span>Создан: ${formatDate(item.created_at)}</span>
       ${invoicePaySlot(item)}
     </div>
   `;
+}
+
+function paginationControls({ page, pages, total, prevAction, nextAction }) {
+  return `
+    <div class="pagination row between wrap">
+      <span class="muted no-margin">Страница ${page} из ${pages} · всего ${total}</span>
+      <div class="row">
+        <button class="btn ghost" data-action="${prevAction}" type="button" ${page <= 1 ? "disabled" : ""}>Назад</button>
+        <button class="btn ghost" data-action="${nextAction}" type="button" ${page >= pages ? "disabled" : ""}>Вперёд</button>
+      </div>
+    </div>
+  `;
+}
+
+function adminLinksBlock() {
+  return `
+    <section class="card admin-panels-card">
+      <header>
+        <div>
+          <h2>Панели</h2>
+          <p class="muted">Swagger, XUI Panel и серверы TimeWeb</p>
+        </div>
+      </header>
+      <div id="admin-links-content" class="admin-links-grid">
+        <p class="muted">Загружаю...</p>
+      </div>
+    </section>
+  `;
+}
+
+function renderAdminLinksContent() {
+  const links = state.adminLinks;
+
+  if (!links) {
+    return `<p class="muted">Загружаю...</p>`;
+  }
+
+  return `
+    <a class="admin-link-card admin-link-card--swagger" href="${links.swagger_url}" target="_blank" rel="noreferrer">
+      <span class="admin-link-title">Swagger</span>
+      <span class="admin-link-hint">Документация API</span>
+      <span class="admin-link-url">${links.swagger_url}</span>
+    </a>
+    <a class="admin-link-card admin-link-card--panel" href="${links.xui_panel_url}" target="_blank" rel="noreferrer">
+      <span class="admin-link-title">XUI Panel</span>
+      <span class="admin-link-hint">Панель управления</span>
+      <span class="admin-link-url">${links.xui_panel_url}</span>
+    </a>
+    <a class="admin-link-card admin-link-card--servers" href="${links.servers_url}" target="_blank" rel="noreferrer">
+      <span class="admin-link-title">TimeWeb Servers</span>
+      <span class="admin-link-hint">Серверы в панели TimeWeb</span>
+      <span class="admin-link-url">${links.servers_url}</span>
+    </a>
+  `;
+}
+
+export async function loadAdminLinks({ quiet = false } = {}) {
+  const card = document.querySelector("#admin-links-content")?.closest(".card");
+
+  const fetchLinks = async () => {
+    if (document.querySelector("#admin-links-content")) {
+      updatePanel("#admin-links-content", `<p class="muted">Загружаю...</p>`);
+    }
+
+    try {
+      state.adminLinks = await api("/admin/links");
+      updatePanel("#admin-links-content", renderAdminLinksContent());
+    } catch (error) {
+      if (isInvalidToken(error)) {
+        logoutToLogin(error.message);
+        return;
+      }
+      updatePanel("#admin-links-content", ui.apiError(error.message));
+    }
+  };
+
+  if (quiet || !card) {
+    await fetchLinks();
+    return;
+  }
+
+  await withBusy(card, fetchLinks);
 }
 
 function adminCreateUserBlock() {
@@ -241,9 +352,9 @@ function allInvoicesBlock() {
   return ui.card(
     "Все инвойсы",
     `<div class="stack">
-      <p class="muted">Последние 100 счетов в любом статусе.</p>
-      <p class="payment-hint hide" data-invoice-pay-hint></p>
+      <p class="muted">Счета с данными пользователя.</p>
       <div id="all-invoices-content" class="list"><p class="muted">Загружаю...</p></div>
+      <div id="all-invoices-pagination"></div>
     </div>`,
     "",
     "all-invoices-feedback",
@@ -251,15 +362,13 @@ function allInvoicesBlock() {
 }
 
 function renderAllInvoicesList() {
-  if (!state.allInvoices) {
-    return `<p class="muted">Загружаю...</p>`;
-  }
+  const items = state.allInvoices?.items ?? [];
 
-  if (!state.allInvoices.length) {
+  if (!items.length) {
     return `<p class="muted">Инвойсов нет</p>`;
   }
 
-  return state.allInvoices.map((item) => invoiceItem(item, { admin: true })).join("");
+  return items.map((item) => invoiceItem(item, { admin: true })).join("");
 }
 
 function statusBlock() {
@@ -292,19 +401,22 @@ export function renderStatus() {
     return `<p class="muted">Загружаю статус...</p>`;
   }
 
-  return [ui.service("API", state.status.API), ui.service("XUI", state.status.XUI), ui.service("TimeWeb", state.status.TimeWeb)].join("");
+  return getStatusServices().map(({ name, item }) => ui.service(name, item)).join("");
 }
 
-export async function loadStatus({ quiet = false } = {}) {
+export async function loadStatus({ quiet = false, poll = false } = {}) {
   const card = document.querySelector("#status-content")?.closest(".card");
+  const silent = poll || (quiet && state.status !== null);
 
   const fetchStatus = async () => {
-    state.statusLoading = true;
-    renderStatusBanner();
-    updatePaymentFormState();
-    updatePanel("#status-feedback", "");
-    if (document.querySelector("#status-content")) {
-      updatePanel("#status-content", `<p class="muted">Загружаю статус...</p>`);
+    if (!silent) {
+      state.statusLoading = true;
+      renderStatusBanner();
+      updatePaymentFormState();
+      updatePanel("#status-feedback", "");
+      if (document.querySelector("#status-content")) {
+        updatePanel("#status-content", `<p class="muted">Загружаю статус...</p>`);
+      }
     }
 
     try {
@@ -313,19 +425,27 @@ export async function loadStatus({ quiet = false } = {}) {
         updatePanel("#status-content", renderStatus());
       }
     } catch (error) {
+      if (isInvalidToken(error)) {
+        stopStatusPolling();
+        logoutToLogin(error.message);
+        return;
+      }
+
       state.status = null;
-      if (document.querySelector("#status-content")) {
+      if (document.querySelector("#status-content") && !silent) {
         updatePanel("#status-content", `<p class="muted">Статус недоступен</p>`);
         handleApiError(error, "#status-feedback");
       }
     } finally {
-      state.statusLoading = false;
+      if (!silent) {
+        state.statusLoading = false;
+      }
       renderStatusBanner();
       updatePaymentFormState();
     }
   };
 
-  if (quiet || !card) {
+  if (quiet || poll || !card) {
     await fetchStatus();
     return;
   }
@@ -333,8 +453,10 @@ export async function loadStatus({ quiet = false } = {}) {
   await withBusy(card, fetchStatus);
 }
 
-export async function loadAllInvoices({ quiet = false } = {}) {
+export async function loadAllInvoices({ quiet = false, page = state.allInvoices?.page ?? 1 } = {}) {
   const card = document.querySelector("#all-invoices-content")?.closest(".card");
+  const previous = state.allInvoices ?? emptyPagination();
+  const targetPage = clampPage(page, previous.pages);
 
   const fetchInvoices = async () => {
     updatePanel("#all-invoices-feedback", "");
@@ -343,8 +465,17 @@ export async function loadAllInvoices({ quiet = false } = {}) {
     }
 
     try {
-      state.allInvoices = await api("/admin/invoices");
+      const data = await api(`/admin/invoices?page=${targetPage}&limit=${previous.limit}`);
+      state.allInvoices = normalizePaginated(data, { ...previous, page: targetPage });
       updatePanel("#all-invoices-content", renderAllInvoicesList());
+      updatePanel(
+        "#all-invoices-pagination",
+        paginationControls({
+          ...state.allInvoices,
+          prevAction: "invoices-prev",
+          nextAction: "invoices-next",
+        }),
+      );
     } catch (error) {
       handleApiError(error, "#all-invoices-feedback");
     }

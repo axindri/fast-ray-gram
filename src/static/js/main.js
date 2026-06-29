@@ -1,7 +1,8 @@
 import { api, handleApiError, isInvalidToken, logoutToLogin, onLogout } from "./api.js";
 import { app, state, storageKey } from "./state.js";
 import { formatDate, formData, needsDeleteConfirm, resetDeleteConfirm, showFeedback, toNumber, ui, withBusy } from "./ui.js";
-import { checkInvoices, createPayment, loadStatus, refreshProfile, renderDashboard, renderLogin } from "./views.js";
+import { emptyPagination } from "./pagination.js";
+import { checkInvoices, createPayment, loadAllInvoices, loadStatus, refreshProfile, renderDashboard, renderLogin } from "./views.js";
 
 onLogout(renderLogin);
 
@@ -10,7 +11,7 @@ async function login(token) {
   state.status = null;
   state.statusLoading = false;
   state.checkedInvoices = null;
-  state.allInvoices = null;
+  state.allInvoices = emptyPagination();
   localStorage.setItem(storageKey, token);
 
   state.user = await api("/user/me");
@@ -196,11 +197,25 @@ async function handleAction(event) {
     if (action === "refresh-profile") {
       await refreshProfile();
     }
+    if (action === "invoices-prev") {
+      if (state.allInvoices.page <= 1) {
+        return;
+      }
+      await loadAllInvoices({ page: state.allInvoices.page - 1 });
+    }
+    if (action === "invoices-next") {
+      if (state.allInvoices.page >= state.allInvoices.pages) {
+        return;
+      }
+      await loadAllInvoices({ page: state.allInvoices.page + 1 });
+    }
   } catch (error) {
     const feedback = {
       "check-invoices": "#invoices-feedback",
       "load-status": "#status-feedback",
       "refresh-profile": "#profile-invoices-feedback",
+      "invoices-prev": "#all-invoices-feedback",
+      "invoices-next": "#all-invoices-feedback",
     }[action];
     handleApiError(error, feedback);
   }
