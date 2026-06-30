@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-
 from math import ceil
 
 from httpx import AsyncClient
@@ -94,15 +93,7 @@ class TimeWebService:
         )
         db.add(invoice)
         await db.commit()
-        return InvoiceResponse(
-            invoice_id=invoice.invoice_id,
-            user_id=invoice.user_id,
-            payment_uuid=invoice.payment_uuid,
-            confirmation_url=invoice.confirmation_url,
-            status=invoice.status,
-            created_at=invoice.created_at,
-            updated_at=invoice.updated_at,
-        )
+        return InvoiceResponse.model_validate(invoice)
 
     async def get_payments(self) -> list[PaymentResponse]:
         url = f"{settings.timeweb.api_url}/accounts/payments?limit=1000&offset=0&locale=ru"
@@ -165,6 +156,7 @@ class TimeWebService:
 
         items = [
             AdminInvoiceResponse(
+                id=invoice.id,
                 invoice_id=invoice.invoice_id,
                 user_id=invoice.user_id,
                 username=username or "",

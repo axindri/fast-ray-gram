@@ -27,6 +27,7 @@ class NewInvoiceRequest(BaseModel):
 
 
 class InvoiceResponse(BaseModel):
+    id: int
     invoice_id: int
     user_id: int
     payment_uuid: str
@@ -40,6 +41,7 @@ class InvoiceResponse(BaseModel):
 
 
 class AdminInvoiceResponse(BaseModel):
+    id: int
     invoice_id: int
     user_id: int
     username: str = ""
