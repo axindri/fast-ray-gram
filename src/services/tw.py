@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from math import ceil
 
 from httpx import AsyncClient
+from fastapi import HTTPException
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -134,6 +135,20 @@ class TimeWebService:
                 payed_invoices.append(invoice)
 
         return [InvoiceResponse.model_validate(invoice) for invoice in payed_invoices]
+
+    async def cancel_invoice(self, db: AsyncSession, id: int) -> InvoiceResponse:
+        result = await db.execute(select(Invoice).where(Invoice.id == id))
+        invoice = result.scalar_one_or_none()
+        if invoice is None:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        if invoice.status == InvoiceStatus.PAID:
+            raise HTTPException(status_code=400, detail="Paid invoice cannot be cancelled")
+
+        invoice.status = InvoiceStatus.CANCELLED
+        await db.commit()
+        await db.refresh(invoice)
+        logger.debug(f"Set invoice {invoice.invoice_id} status to CANCELLED")
+        return InvoiceResponse.model_validate(invoice)
 
     async def list_invoices(
         self, db: AsyncSession, page: int = 1, limit: int = 20

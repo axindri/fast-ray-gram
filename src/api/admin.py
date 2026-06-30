@@ -99,3 +99,12 @@ async def check_invoices(
         )
         await xui_service.reset_client_traffic_by_email(user.username)
     return payed_invoices
+
+
+@router.post("/invoices/{id}/cancel")
+async def cancel_invoice(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    tw_service: TimeWebService = Depends(get_timeweb_service),
+) -> InvoiceResponse:
+    return await tw_service.cancel_invoice(db, id)

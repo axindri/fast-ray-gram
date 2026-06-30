@@ -665,7 +665,7 @@ function buildDashboardGroups() {
     groups.push(
       { id: "panels", title: "Панели", items: [adminLinksBlock()] },
       { id: "monitoring", title: "Мониторинг", items: [statusBlock()] },
-      { id: "invoices", title: "Инвойсы", items: [invoicesBlock(), allInvoicesBlock()] },
+      { id: "invoices", title: "Инвойсы", gridClass: "dashboard-group-grid dashboard-group-grid--invoices", items: [invoicesBlock(), cancelInvoiceBlock(), allInvoicesBlock()] },
       { id: "users", title: "Пользователи", items: [adminCreateUserBlock(), adminUserManageBlock()] },
       { id: "xui", title: "XUI", items: [xuiBlock()] },
     );
@@ -685,7 +685,7 @@ function renderDashboardNav(groups) {
 function renderDashboardGroups(groups) {
   return groups
     .map((group) => {
-      const gridClass = group.items.length === 1 ? "dashboard-group-grid dashboard-group-grid--single" : "dashboard-group-grid";
+      const gridClass = group.gridClass ?? (group.items.length === 1 ? "dashboard-group-grid dashboard-group-grid--single" : "dashboard-group-grid");
 
       return `
         <section class="dashboard-group" id="group-${group.id}">
@@ -761,6 +761,7 @@ function invoiceItem(item, { admin = false } = {}) {
       ${item.mark ? `<span>Заметка: ${item.mark}</span>` : ""}
       ${item.sub_url ? `<a class="invoice-sub-link" href="${item.sub_url}" target="_blank" rel="noreferrer">Ссылка подписки</a>` : ""}
       ${item.amount != null ? `<span>Сумма: ${item.amount} ₽</span>` : ""}
+      <span>ID записи: ${item.id}</span>
     `
     : "";
 
@@ -908,11 +909,23 @@ function invoicesBlock() {
     "Платежи",
     `<div class="stack">
       <p class="muted">Проверить оплаченные счета и активировать клиентов.</p>
-      ${ui.button("Проверить инвойсы", "check-invoices")}
+      ${ui.button("Проверить", "check-invoices")}
       <div id="invoices-content" class="list">${renderCheckedInvoices()}</div>
     </div>`,
     "",
     "invoices-feedback",
+  );
+}
+
+function cancelInvoiceBlock() {
+  return ui.card(
+    "Отменить инвойс",
+    `<form class="form" data-form="cancel-invoice">
+      ${ui.field("id", "ID записи", "number", "", 'placeholder="1" required')}
+      <button class="btn danger" type="submit">Отменить</button>
+    </form>`,
+    "Принудительно перевести инвойс в статус «Отменён»",
+    "cancel-invoice-feedback",
   );
 }
 
@@ -1107,6 +1120,7 @@ const formHandlers = {
   "user-actions": submitUserActions,
   "xui-client": submitXuiClient,
   "new-payment": (form) => createPayment(form),
+  "cancel-invoice": submitCancelInvoice,
 };
 
 const formFeedback = {
@@ -1114,6 +1128,7 @@ const formFeedback = {
   "user-actions": "#user-manage-feedback",
   "xui-client": "#xui-feedback",
   "new-payment": "#profile-invoices-feedback",
+  "cancel-invoice": "#cancel-invoice-feedback",
 };
 
 const actionHandlers = {
@@ -1182,6 +1197,18 @@ async function submitCreateUser(form) {
       }),
     });
     updatePanel("#create-user-feedback", ui.readonly("Новый токен", token));
+  });
+}
+
+async function submitCancelInvoice(form) {
+  await withBusy(form.closest(".card"), async () => {
+    updatePanel("#cancel-invoice-feedback", "");
+    const { id } = formData(form);
+    const invoice = await api(`/admin/invoices/${id}/cancel`, { method: "POST" });
+    updatePanel("#cancel-invoice-feedback", ui.status(`Инвойс #${invoice.invoice_id} отменён`));
+    if (state.isAdmin) {
+      await loadAllInvoices({ quiet: true });
+    }
   });
 }
 
