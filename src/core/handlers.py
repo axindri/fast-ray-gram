@@ -25,8 +25,8 @@ async def http_exception_handler(request: Request, exc: httpx.ConnectTimeout) ->
         exc,
     )
     return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error"},
+        status_code=503,
+        content={"detail": "Service Unavailable"},
     )
 
 
