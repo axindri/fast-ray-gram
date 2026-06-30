@@ -182,16 +182,6 @@ a,
   scroll-margin-top: 16px;
 }
 
-.dashboard-group-title {
-  margin: 0 0 12px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .dashboard-group-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

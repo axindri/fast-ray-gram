@@ -689,7 +689,6 @@ function renderDashboardGroups(groups) {
 
       return `
         <section class="dashboard-group" id="group-${group.id}">
-          <h2 class="dashboard-group-title">${group.title}</h2>
           <div class="${gridClass}">
             ${group.items.join("")}
           </div>
