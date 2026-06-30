@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from fastapi import Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.enums import InvoiceStatus
 from src.core.logger import get_logger
 from src.core.settings import settings
 from src.models.tw import InvoiceResponse
@@ -68,7 +69,13 @@ class UserService:
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
         invoices = await db.execute(
-            select(Invoice).where(Invoice.user_id == id).order_by(Invoice.created_at.desc()).limit(10)
+            select(Invoice)
+            .where(Invoice.user_id == id)
+            .order_by(
+                case((Invoice.status == InvoiceStatus.PENDING, 0), else_=1),
+                Invoice.created_at.desc(),
+            )
+            .limit(10)
         )
         invoices = invoices.scalars().all()
         return UserProfileResponse(

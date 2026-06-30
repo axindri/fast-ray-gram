@@ -747,7 +747,7 @@ function invoiceStatusPill(status) {
 
 function invoicePaySlot(item) {
   const status = String(item.status || "").toLowerCase();
-  if (status === "cancelled" || !item.confirmation_url) {
+  if (status !== "pending" || !item.confirmation_url) {
     return "";
   }
 

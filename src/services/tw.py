@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from math import ceil
 
 from httpx import AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.enums import InvoiceStatus, ServiceStatus
@@ -155,7 +155,10 @@ class TimeWebService:
         result = await db.execute(
             select(Invoice, User.username, User.mark, User.sub_url)
             .outerjoin(User, Invoice.user_id == User.id)
-            .order_by(Invoice.created_at.desc())
+            .order_by(
+                case((Invoice.status == InvoiceStatus.PENDING, 0), else_=1),
+                Invoice.created_at.desc(),
+            )
             .offset(offset)
             .limit(limit)
         )
