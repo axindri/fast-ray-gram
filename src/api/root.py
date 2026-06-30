@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 
+from src.core.cache import app_cache
 from src.core.deps import require_roles
 from src.core.enums import Role, ServiceStatus
 from src.core.logger import get_logger
@@ -7,16 +8,16 @@ from src.core.settings import settings
 from src.services.tw import TimeWebService, get_timeweb_service
 from src.services.xui import XuiService, get_xui_service
 
-router = APIRouter(
-    prefix="/api", tags=["root"], dependencies=[Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))]
-)
+router = APIRouter(prefix="/api", tags=["root"])
 
+_auth = [Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))]
 
 logger = get_logger()
 
 
 @router.get("/status")
-async def read_root(
+@app_cache()
+async def read_status(
     xui_service: XuiService = Depends(get_xui_service),
     timeweb_service: TimeWebService = Depends(get_timeweb_service),
 ) -> dict:
@@ -50,7 +51,7 @@ async def read_root(
     }
 
 
-@router.get("/config")
+@router.get("/config", dependencies=_auth)
 async def app_config() -> dict[str, str | int]:
     return {
         "version": settings.app.version,

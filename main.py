@@ -3,6 +3,8 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
 
 from src.api.admin import router as admin_router
 from src.api.frontend import router as frontend_router
@@ -10,6 +12,7 @@ from src.api.root import router as root_router
 from src.api.tw import router as tw_router
 from src.api.user import router as user_router
 from src.api.xui import router as xui_router
+from src.core.cache import request_key_builder
 from src.core.handlers import register_exception_handlers
 from src.core.logger import logger
 from src.core.settings import settings
@@ -19,6 +22,11 @@ from src.services.db import engine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    FastAPICache.init(
+        InMemoryBackend(),
+        prefix=settings.cache.namespace,
+        key_builder=request_key_builder,
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield

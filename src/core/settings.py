@@ -4,6 +4,11 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class CacheSettings(BaseModel):
+    namespace: str = Field(default="fast-ray-gram")
+    default_ttl_seconds: int = Field(default=60)
+
+
 class AppSettings(BaseModel):
     name: str = Field(default="Fast Ray Gram API")
     version: str = Field(default="1.0.0")
@@ -57,6 +62,7 @@ class Settings(BaseSettings):
     )
 
     app: AppSettings = Field(default_factory=AppSettings, alias="APP")
+    cache: CacheSettings = Field(default_factory=CacheSettings, alias="CACHE")
     database: DatabaseSettings = Field(default_factory=DatabaseSettings, alias="DB")
     xui: XuiPanelSettings = Field(default_factory=XuiPanelSettings, alias="XUI")
     timeweb: TimeWebSettings = Field(default_factory=TimeWebSettings, alias="TIMEWEB")

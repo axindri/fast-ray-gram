@@ -509,6 +509,26 @@ a.btn {
   font-weight: 600;
 }
 
+.welcome-note {
+  margin: 0;
+  padding: 6px 0 6px 18px;
+  border-left: 4px solid #d4cede;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+  font-style: italic;
+}
+
+.login-info p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.login-info p + p {
+  margin-top: 12px;
+}
+
 .invoice-sub-link {
   color: var(--accent);
   font-weight: 600;
@@ -636,39 +656,6 @@ a.btn {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
-}
-
-.status-banner {
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(8px);
-  border: 1px solid transparent;
-  border-radius: 16px;
-  background: #fffaeb;
-  color: var(--warn);
-  padding: 0 16px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.4;
-  pointer-events: none;
-  transition:
-    opacity 0.35s var(--ease),
-    transform 0.35s var(--ease),
-    max-height 0.35s var(--ease),
-    padding 0.35s var(--ease),
-    border-color 0.35s var(--ease);
-}
-
-.status-banner.is-visible {
-  max-height: 160px;
-  opacity: 1;
-  transform: translateY(0);
-  padding: 12px 16px;
-  border-color: #fde68a;
-  pointer-events: auto;
-  animation: rise-in 0.38s var(--ease) both;
 }
 
 .payment-hint {
@@ -826,29 +813,6 @@ a.btn {
 .status.warning {
   background: #fffaeb;
   color: var(--warn);
-}
-
-.quote {
-  margin: 0;
-  padding: 6px 0 6px 18px;
-  border-left: 4px solid #d4cede;
-  display: grid;
-  gap: 10px;
-}
-
-.quote p {
-  margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.6;
-  font-style: italic;
-  color: var(--text);
-}
-
-.quote cite {
-  color: var(--muted);
-  font-style: normal;
-  font-size: 13px;
-  font-weight: 700;
 }
 
 .hide {
