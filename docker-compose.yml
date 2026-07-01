@@ -12,6 +12,7 @@ services:
     container_name: fast-ray-gram
     ports:
       - "${APP_PORT:-8000}:8000"
+      - "${APP_HTTPS_PORT:-443}:443"
     env_file:
       - .env
     environment:
