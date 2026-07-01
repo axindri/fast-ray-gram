@@ -3,7 +3,7 @@ import { App, Button, Card, Empty, Flex, Form, Input, InputNumber, Space, Spin, 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { createInvoice, fetchConfig, fetchXuiMe, formatDate, formatExpiryRemaining } from "../api";
+import { createInvoice, fetchConfig, fetchXuiMe, formatDate, formatExpiryRemaining, canRenewSubscription } from "../api";
 import { useAuth } from "../auth";
 import { ThemedIconAvatar } from "../components/ThemedIconAvatar";
 import { useServiceStatus } from "../hooks/useServiceStatus";
@@ -134,10 +134,10 @@ function XuiSubscriptionCard({ client }: { client: XuiClient }) {
   );
 }
 
-function ProfileInvoiceCard({ item, paymentBlocked }: { item: Invoice; paymentBlocked: boolean }) {
+function ProfileInvoiceCard({ item, paymentBlocked, canRenew }: { item: Invoice; paymentBlocked: boolean; canRenew: boolean }) {
   const status = String(item.status || "").toLowerCase();
   const isPending = status === "pending";
-  const canPay = isPending && item.confirmation_url && !paymentBlocked;
+  const canPay = isPending && item.confirmation_url && !paymentBlocked && canRenew;
 
   return (
     <Card size="small" title={`#${item.invoice_id} · ${item.amount} ₽`} extra={<Tag color={invoiceStatusColor(status)}>{INVOICE_STATUS_LABELS[status] || status || "—"}</Tag>}>
@@ -145,7 +145,7 @@ function ProfileInvoiceCard({ item, paymentBlocked }: { item: Invoice; paymentBl
         <Text type="secondary">Создан: {formatDate(item.created_at)}</Text>
         <Text type="secondary">Обновлен: {formatDate(item.updated_at)}</Text>
 
-        {isPending && item.confirmation_url ? (
+        {isPending && item.confirmation_url && canRenew ? (
           <>
             <Button type="primary" href={item.confirmation_url} target="_blank" rel="noreferrer" disabled={!canPay}>
               Оплатить
@@ -244,9 +244,10 @@ export function ProfilePage() {
   const name = displayName(user.username);
   const invoices = user.invoices ?? [];
   const paymentsDisabled = statusLoading || paymentBlocked;
+  const canRenew = xuiClient ? canRenewSubscription(xuiClient.expiry_datetime) : false;
 
   const onCreatePayment = async (values: PaymentForm) => {
-    if (paymentsDisabled) {
+    if (paymentsDisabled || !canRenew) {
       return;
     }
 
@@ -318,9 +319,11 @@ export function ProfilePage() {
               </Form.Item>
               <Form.Item>
                 <Space>
-                  <Button type="primary" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
-                    Создать и оплатить
-                  </Button>
+                  {canRenew ? (
+                    <Button type="primary" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
+                      Создать и оплатить
+                    </Button>
+                  ) : null}
                   {statusLoading ? <Spin indicator={<LoadingOutlined spin />} /> : null}
                 </Space>
               </Form.Item>
@@ -352,7 +355,7 @@ export function ProfilePage() {
 
               <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
                 {invoices.map((item) => (
-                  <ProfileInvoiceCard key={item.id} item={item} paymentBlocked={paymentsDisabled} />
+                  <ProfileInvoiceCard key={item.id} item={item} paymentBlocked={paymentsDisabled} canRenew={canRenew} />
                 ))}
               </Space>
             </div>

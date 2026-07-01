@@ -124,6 +124,21 @@ export function formatExpiryRemaining(value?: string): string | null {
   return `(осталось ${hours} ${pluralRu(hours, "час", "часа", "часов")})`;
 }
 
+const RENEWAL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function canRenewSubscription(expiryDatetime?: string): boolean {
+  if (!expiryDatetime) {
+    return false;
+  }
+
+  const expiry = new Date(expiryDatetime);
+  if (Number.isNaN(expiry.getTime())) {
+    return false;
+  }
+
+  return expiry.getTime() - Date.now() < RENEWAL_WINDOW_MS;
+}
+
 export async function fetchMe(): Promise<UserProfile> {
   return request<UserProfile>(`${API_PREFIX}/user/me`);
 }
