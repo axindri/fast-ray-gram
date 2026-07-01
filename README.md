@@ -15,7 +15,7 @@ cp .env.example .env
 | Переменная | Описание |
 |---|---|
 | `APP__JWT_SECRET` | Секрет для JWT-токенов пользователей |
-| `APP__SUPERUSER_TOKEN` | Токен входа суперпользователя |
+| `APP__SUPERUSER_TOKEN` | Токен входа суперпользователя и авторизация invoice-worker |
 | `APP__DEBUG` | Режим отладки приложения (`true` / `false`) |
 | `XUI__URL` | URL панели 3X-UI |
 | `XUI__SUB_URL` | URL подписок 3X-UI |
@@ -24,6 +24,7 @@ cp .env.example .env
 | `TIMEWEB__PAYER_ID` | ID плательщика в TimeWeb |
 | `SQLITE_WEB_PASSWORD` | Пароль для SQLite Web в dev (пусто — без пароля) |
 | `APP_PORT` | Порт приложения на хосте (по умолчанию `8000`) |
+| `CHECK_INTERVAL_SEC` | Интервал проверки оплаченных инвойсов воркером (по умолчанию `30`) |
 | `SQLITE_WEB_PORT` | Порт SQLite Web в dev (по умолчанию `8081`) |
 
 ## Быстрый старт
