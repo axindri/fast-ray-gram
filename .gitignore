@@ -38,6 +38,9 @@ coverage.xml
 # Build artifacts
 build/
 dist/
+frontend/node_modules/
+frontend/dist/
+src/static/dist/
 *.egg-info/
 
 # IDE and OS files
@@ -46,3 +49,4 @@ dist/
 .DS_Store
 
 database/
+frontend/node_modules/

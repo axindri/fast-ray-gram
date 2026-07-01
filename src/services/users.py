@@ -75,7 +75,7 @@ class UserService:
                 case((Invoice.status == InvoiceStatus.PENDING, 0), else_=1),
                 Invoice.created_at.desc(),
             )
-            .limit(10)
+            .limit(3)
         )
         invoices = invoices.scalars().all()
         return UserProfileResponse(
