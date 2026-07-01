@@ -15,5 +15,6 @@ class ServiceStatus(StrEnum):
 
 class InvoiceStatus(StrEnum):
     PENDING = auto()
+    PROCESSING = auto()
     PAID = auto()
     CANCELLED = auto()

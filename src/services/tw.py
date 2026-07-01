@@ -53,7 +53,10 @@ class TimeWebService:
         self, db: AsyncSession, user_id: int, amount: int, return_url: str, fail_url: str
     ) -> InvoiceResponse:
         db_invoice = await db.execute(
-            select(Invoice).where(Invoice.user_id == user_id, Invoice.status == InvoiceStatus.PENDING)
+            select(Invoice).where(
+                Invoice.user_id == user_id,
+                Invoice.status.in_((InvoiceStatus.PENDING, InvoiceStatus.PROCESSING)),
+            )
         )
         invoice = db_invoice.scalar_one_or_none()
         if invoice is not None:
@@ -131,7 +134,7 @@ class TimeWebService:
             invoice = await db.execute(
                 select(Invoice).where(
                     Invoice.invoice_id == payment.invoice,
-                    Invoice.status == InvoiceStatus.PENDING,
+                    Invoice.status.in_((InvoiceStatus.PENDING, InvoiceStatus.PROCESSING)),
                 )
             )
             invoice = invoice.scalar_one_or_none()
@@ -142,6 +145,31 @@ class TimeWebService:
                 payed_invoices.append(invoice)
 
         return [InvoiceResponse.model_validate(invoice) for invoice in payed_invoices]
+
+    async def mark_invoice_processing(
+        self, db: AsyncSession, user_id: int, invoice_id: int, md_order: str | None
+    ) -> InvoiceResponse:
+        result = await db.execute(
+            select(Invoice).where(Invoice.user_id == user_id, Invoice.invoice_id == invoice_id)
+        )
+        invoice = result.scalar_one_or_none()
+        if invoice is None:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+
+        if invoice.status == InvoiceStatus.PROCESSING:
+            return InvoiceResponse.model_validate(invoice)
+
+        if invoice.status != InvoiceStatus.PENDING:
+            raise HTTPException(status_code=400, detail="Invoice is not awaiting payment")
+
+        if md_order and invoice.payment_uuid != md_order:
+            raise HTTPException(status_code=400, detail="Payment order mismatch")
+
+        invoice.status = InvoiceStatus.PROCESSING
+        await db.commit()
+        await db.refresh(invoice)
+        logger.debug(f"Set invoice {invoice.invoice_id} status to PROCESSING")
+        return InvoiceResponse.model_validate(invoice)
 
     async def cancel_invoice(self, db: AsyncSession, id: int) -> InvoiceResponse:
         result = await db.execute(select(Invoice).where(Invoice.id == id))
@@ -169,7 +197,7 @@ class TimeWebService:
             select(Invoice, User.username, User.mark, User.sub_url)
             .outerjoin(User, Invoice.user_id == User.id)
             .order_by(
-                case((Invoice.status == InvoiceStatus.PENDING, 0), else_=1),
+                case((Invoice.status.in_((InvoiceStatus.PENDING, InvoiceStatus.PROCESSING)), 0), else_=1),
                 Invoice.created_at.desc(),
             )
             .offset(offset)

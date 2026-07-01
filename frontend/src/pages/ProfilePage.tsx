@@ -17,7 +17,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useServiceStatus } from "../hooks/useServiceStatus";
 import { getApiErrorMessage } from "../utils/apiError";
 import { avatarLetter, displayName } from "../utils/format";
-import { ROLE_LABELS, type UserRole } from "../types";
+import { ROLE_LABELS, isInvoiceActive, type UserRole } from "../types";
 
 const { Title, Text } = Typography;
 
@@ -136,7 +136,7 @@ export function ProfilePage() {
 
   const name = displayName(user.username);
   const invoices = user.invoices ?? [];
-  const hasPendingInvoice = invoices.some((item) => String(item.status || "").toLowerCase() === "pending");
+  const hasActiveInvoice = invoices.some((item) => isInvoiceActive(item.status));
   const paymentsDisabled = statusLoading || paymentBlocked;
   const canRenew = xuiClient ? canRenewSubscription(xuiClient.expiry_datetime) : false;
   const authLink = useMemo(() => {
@@ -203,7 +203,7 @@ export function ProfilePage() {
 
           {xuiClient ? <XuiClientCard client={xuiClient} variant="profile" /> : null}
 
-          {canRenew ? (
+          {canRenew && !hasActiveInvoice ? (
             <SectionCard
               title={
                 <Flex align="center" gap={8}>
@@ -254,12 +254,12 @@ export function ProfilePage() {
               </Button>
             }
           >
-            {hasPendingInvoice ? (
+            {hasActiveInvoice ? (
               <Alert
                 type="warning"
                 showIcon
                 title="Обработка платежа"
-                description="После оплаты статус счёта может оставаться «Ожидает оплаты» до минуты — платёж ещё обрабатывается. Нажмите «Обновить», если статус не изменился."
+                description="После оплаты статус счёта может оставаться «В обработке» до минуты — платёж ещё подтверждается. Нажмите «Обновить», если статус не изменился."
                 style={{ marginBottom: 16 }}
               />
             ) : null}

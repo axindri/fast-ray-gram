@@ -81,14 +81,21 @@ export type Paginated<T> = {
 
 export const INVOICE_STATUS_LABELS: Record<string, string> = {
   pending: "Ожидает оплаты",
+  processing: "В обработке",
   paid: "Оплачено",
   cancelled: "Отменён",
 };
 
 export function invoiceStatusColor(status: string) {
   if (status === "pending") return "gold";
+  if (status === "processing") return "blue";
   if (status === "paid") return "green";
   return "default";
+}
+
+export function isInvoiceActive(status: string) {
+  const normalized = String(status || "").toLowerCase();
+  return normalized === "pending" || normalized === "processing";
 }
 
 export type AdminUser = {

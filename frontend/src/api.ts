@@ -161,6 +161,16 @@ export async function createInvoice(amount: number): Promise<Invoice> {
   });
 }
 
+export async function confirmPaymentReturn(invoiceId: number, mdOrder?: string | null): Promise<Invoice> {
+  return request<Invoice>(`${API_PREFIX}/tw/payment-return`, {
+    method: "POST",
+    body: JSON.stringify({
+      invoice_id: invoiceId,
+      md_order: mdOrder || undefined,
+    }),
+  });
+}
+
 export async function fetchStatus(): Promise<StatusResponse> {
   return request<StatusResponse>(`${API_PREFIX}/status`);
 }

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.deps import get_current_user, require_roles
 from src.core.enums import Role
-from src.models.tw import FinancesResponse, InvoiceResponse, NewInvoiceRequest, PaymentResponse
+from src.models.tw import FinancesResponse, InvoiceResponse, NewInvoiceRequest, PaymentResponse, PaymentReturnRequest
 from src.schemas.users import User
 from src.services.db import get_db
 from src.services.tw import TimeWebService, get_timeweb_service
@@ -30,6 +30,21 @@ async def new_invoice(
         request.amount,
         request.return_url,
         request.fail_url,
+    )
+
+
+@router.post("/payment-return", dependencies=[Depends(require_roles(Role.ADMIN, Role.USER))])
+async def payment_return(
+    request: PaymentReturnRequest,
+    db: AsyncSession = Depends(get_db),
+    timeweb_service: TimeWebService = Depends(get_timeweb_service),
+    user: User = Depends(get_current_user),
+) -> InvoiceResponse:
+    return await timeweb_service.mark_invoice_processing(
+        db,
+        user.id,
+        request.invoice_id,
+        request.md_order,
     )
 
 

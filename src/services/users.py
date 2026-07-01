@@ -85,7 +85,7 @@ class UserService:
             select(Invoice)
             .where(Invoice.user_id == id)
             .order_by(
-                case((Invoice.status == InvoiceStatus.PENDING, 0), else_=1),
+                case((Invoice.status.in_((InvoiceStatus.PENDING, InvoiceStatus.PROCESSING)), 0), else_=1),
                 Invoice.created_at.desc(),
             )
             .limit(3)

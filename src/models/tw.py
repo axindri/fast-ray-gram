@@ -26,6 +26,11 @@ class NewInvoiceRequest(BaseModel):
     fail_url: str
 
 
+class PaymentReturnRequest(BaseModel):
+    invoice_id: int
+    md_order: str | None = None
+
+
 class InvoiceResponse(BaseModel):
     id: int
     invoice_id: int
