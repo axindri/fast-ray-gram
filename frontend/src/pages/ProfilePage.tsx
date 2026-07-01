@@ -7,6 +7,7 @@ import { createInvoice, fetchConfig, formatDate } from "../api";
 import { useAuth } from "../auth";
 import { useServiceStatus } from "../hooks/useServiceStatus";
 import { INVOICE_STATUS_LABELS, ROLE_LABELS, invoiceStatusColor, isAdminRole, type Invoice, type UserRole } from "../types";
+import { copyToClipboard } from "../utils/clipboard";
 
 const { Title, Text } = Typography;
 
@@ -182,7 +183,15 @@ export function ProfilePage() {
           <div style={{ marginTop: 16 }}>
             <Space.Compact style={{ width: "100%", maxWidth: 640 }}>
               <Input value={user.sub_url} readOnly />
-              <Button icon={<CopyOutlined />} aria-label="Скопировать" onClick={() => void navigator.clipboard.writeText(user.sub_url).then(() => message.success("Скопировано"))} />
+              <Button
+                icon={<CopyOutlined />}
+                aria-label="Скопировать"
+                onClick={() => {
+                  void copyToClipboard(user.sub_url)
+                    .then(() => message.success("Скопировано"))
+                    .catch(() => message.error("Не удалось скопировать"));
+                }}
+              />
             </Space.Compact>
           </div>
         </Card>

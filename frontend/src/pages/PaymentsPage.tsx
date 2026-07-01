@@ -4,10 +4,12 @@ import { App, Button, Card, Col, Empty, Form, InputNumber, Row, Space, Spin, Tag
 
 import { cancelInvoice, checkInvoices, fetchInvoices, formatDate } from "../api";
 import { INVOICE_STATUS_LABELS, invoiceStatusColor, type AdminInvoice, type Invoice, type Paginated } from "../types";
+import { copyToClipboard } from "../utils/clipboard";
 
 const { Title, Text, Link } = Typography;
 
 function InvoiceRow({ item, admin = false }: { item: Invoice | AdminInvoice; admin?: boolean }) {
+  const { message } = App.useApp();
   const adminItem = admin ? (item as AdminInvoice) : null;
   const status = String(item.status || "").toLowerCase();
 
@@ -16,7 +18,15 @@ function InvoiceRow({ item, admin = false }: { item: Invoice | AdminInvoice; adm
       <Space orientation="vertical" size={4} style={{ width: "100%" }}>
         {adminItem ? (
           <>
-            <Text type="secondary" style={{ cursor: "pointer" }} onClick={() => void navigator.clipboard.writeText(String(adminItem.id))}>
+            <Text
+              type="secondary"
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                void copyToClipboard(String(adminItem.id))
+                  .then(() => message.success("Скопировано"))
+                  .catch(() => message.error("Не удалось скопировать"));
+              }}
+            >
               Идентификатор (ID): {adminItem.id}
             </Text>
             <Text type="secondary">Пользователь: {adminItem.username || `ID ${adminItem.user_id}`}</Text>

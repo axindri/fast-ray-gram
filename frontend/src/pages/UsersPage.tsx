@@ -4,6 +4,7 @@ import { App, Button, Card, Col, Empty, Form, Input, InputNumber, Popconfirm, Ro
 import { buildAuthLink, createUser, deleteUser, deleteXuiClient, fetchConfig, fetchUserById, fetchXuiClient, formatDate, refreshUserToken, resetXuiClientTraffic, updateXuiClient } from "../api";
 import { useAuth } from "../auth";
 import { ROLE_LABELS, type AdminUser, type UserRole, type XuiClient } from "../types";
+import { copyToClipboard } from "../utils/clipboard";
 
 const { Title, Text, Link } = Typography;
 
@@ -35,7 +36,9 @@ function CopyField({ label, value, highlight = false }: { label: string; value: 
         <Input value={value} readOnly style={highlight ? { fontWeight: 600 } : undefined} />
         <Button
           onClick={() => {
-            void navigator.clipboard.writeText(value).then(() => message.success("Скопировано"));
+            void copyToClipboard(value)
+              .then(() => message.success("Скопировано"))
+              .catch(() => message.error("Не удалось скопировать"));
           }}
         >
           Скопировать
