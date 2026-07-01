@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import ceil
 
-from httpx import AsyncClient
 from fastapi import HTTPException
+from httpx import AsyncClient
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,7 @@ class TimeWebService:
         url = f"{self.base_url}/account/status"
         headers = {
             "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
         }
         response = await AsyncClient(timeout=self.timeout).get(url, headers=headers)
         response.raise_for_status()
@@ -35,6 +36,7 @@ class TimeWebService:
         logger.debug(f"tw token: {self.token[:10]}...")
         headers = {
             "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
         }
         response = await AsyncClient(timeout=self.timeout).get(url, headers=headers)
         response.raise_for_status()
