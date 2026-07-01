@@ -103,6 +103,11 @@ class UserService:
         user = await self.get_by_id(db, id)
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
+
+        xui_client = await self.xui_service.get_client_by_email(user.username)
+        if xui_client is not None:
+            await self.xui_service.delete_client_by_email(user.username)
+
         await db.delete(user)
         await db.commit()
         return id
