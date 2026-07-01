@@ -28,15 +28,17 @@ cp .env.example .env
 
 ## Быстрый старт
 
-**Разработка** (hot reload, SQLite Web):
+**Разработка** (hot reload бэкенда, SQLite Web, React на `:8000` после сборки образа):
 
 ```bash
 cp .env.example .env
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-- http://localhost:8000 — приложение
+- http://localhost:8000 — приложение (API + собранный React)
 - http://localhost:8081 — SQLite Web
+
+Для hot reload фронтенда отдельно: `cd frontend && npm install && npm run dev` → http://localhost:5173
 
 **Продакшен** (бэкенд + собранный React-фронтенд в одном контейнере):
 

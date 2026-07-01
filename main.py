@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 
@@ -39,11 +39,13 @@ app = FastAPI(
 
 register_exception_handlers(app)
 
-app.include_router(root_router)
-app.include_router(admin_router)
-app.include_router(user_router)
-app.include_router(tw_router)
-app.include_router(xui_router)
+api_router = APIRouter(prefix="/api")
+api_router.include_router(root_router)
+api_router.include_router(admin_router)
+api_router.include_router(user_router)
+api_router.include_router(tw_router)
+api_router.include_router(xui_router)
+app.include_router(api_router)
 register_frontend(app)
 
 init_msg = """

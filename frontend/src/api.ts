@@ -13,6 +13,8 @@ import type {
 
 export const TOKEN_KEY = "fast-ray-token";
 
+const API_PREFIX = "/api";
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -49,10 +51,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new ApiError("Неверный ответ сервера", response.status);
+    }
+  }
 
   if (!response.ok) {
-    const detail = data?.detail;
+    const detail = (data as { detail?: unknown } | null)?.detail;
     const message = typeof detail === "string" ? detail : response.statusText;
 
     if (response.status === 401) {
@@ -71,13 +81,13 @@ export function formatDate(value?: string): string {
 }
 
 export async function fetchMe(): Promise<UserProfile> {
-  return request<UserProfile>("/user/me");
+  return request<UserProfile>(`${API_PREFIX}/user/me`);
 }
 
 export async function createInvoice(amount: number): Promise<Invoice> {
   const returnUrl = window.location.href;
 
-  return request<Invoice>("/tw/new-invoice", {
+  return request<Invoice>(`${API_PREFIX}/tw/new-invoice`, {
     method: "POST",
     body: JSON.stringify({
       amount,
@@ -88,23 +98,23 @@ export async function createInvoice(amount: number): Promise<Invoice> {
 }
 
 export async function fetchStatus(): Promise<StatusResponse> {
-  return request<StatusResponse>("/api/status");
+  return request<StatusResponse>(`${API_PREFIX}/status`);
 }
 
 export async function fetchAdminLinks(): Promise<AdminLinks> {
-  return request<AdminLinks>("/admin/links");
+  return request<AdminLinks>(`${API_PREFIX}/admin/links`);
 }
 
 export async function fetchInvoices(page = 1, limit = 3): Promise<Paginated<AdminInvoice>> {
-  return request<Paginated<AdminInvoice>>(`/admin/invoices?page=${page}&limit=${limit}`);
+  return request<Paginated<AdminInvoice>>(`${API_PREFIX}/admin/invoices?page=${page}&limit=${limit}`);
 }
 
 export async function checkInvoices(): Promise<Invoice[]> {
-  return request<Invoice[]>("/admin/invoices/check");
+  return request<Invoice[]>(`${API_PREFIX}/admin/invoices/check`);
 }
 
 export async function cancelInvoice(id: number): Promise<Invoice> {
-  return request<Invoice>(`/admin/invoices/${id}/cancel`, { method: "POST" });
+  return request<Invoice>(`${API_PREFIX}/admin/invoices/${id}/cancel`, { method: "POST" });
 }
 
 export function buildAuthLink(token: string): string {
@@ -114,43 +124,43 @@ export function buildAuthLink(token: string): string {
 }
 
 export async function fetchConfig(): Promise<AppConfig> {
-  return request<AppConfig>("/api/config");
+  return request<AppConfig>(`${API_PREFIX}/config`);
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<string> {
-  return request<string>("/admin/users/create", { method: "POST", body: JSON.stringify(payload) });
+  return request<string>(`${API_PREFIX}/admin/users/create`, { method: "POST", body: JSON.stringify(payload) });
 }
 
 export async function fetchUserById(id: number): Promise<AdminUser> {
-  return request<AdminUser>(`/admin/users/get/${id}`);
+  return request<AdminUser>(`${API_PREFIX}/admin/users/get/${id}`);
 }
 
 export async function refreshUserToken(id: number): Promise<string> {
-  return request<string>(`/admin/users/${id}/refresh-token`, { method: "POST" });
+  return request<string>(`${API_PREFIX}/admin/users/${id}/refresh-token`, { method: "POST" });
 }
 
 export async function deleteUser(id: number): Promise<void> {
-  await request<null>(`/admin/users/delete/${id}`, { method: "DELETE" });
+  await request<null>(`${API_PREFIX}/admin/users/delete/${id}`, { method: "DELETE" });
 }
 
 export async function fetchXuiClient(email: string): Promise<XuiClient> {
-  return request<XuiClient>(`/xui/clients/get/${encodeURIComponent(email)}`);
+  return request<XuiClient>(`${API_PREFIX}/xui/clients/get/${encodeURIComponent(email)}`);
 }
 
 export async function updateXuiClient(
   email: string,
   payload: { expiry_time_days: number; enable: boolean },
 ): Promise<string> {
-  return request<string>(`/xui/clients/update/${encodeURIComponent(email)}`, {
+  return request<string>(`${API_PREFIX}/xui/clients/update/${encodeURIComponent(email)}`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function resetXuiClientTraffic(email: string): Promise<string> {
-  return request<string>(`/xui/clients/reset-traffic/${encodeURIComponent(email)}`, { method: "POST" });
+  return request<string>(`${API_PREFIX}/xui/clients/reset-traffic/${encodeURIComponent(email)}`, { method: "POST" });
 }
 
 export async function deleteXuiClient(email: string): Promise<string> {
-  return request<string>(`/xui/clients/delete/${encodeURIComponent(email)}`, { method: "DELETE" });
+  return request<string>(`${API_PREFIX}/xui/clients/delete/${encodeURIComponent(email)}`, { method: "DELETE" });
 }

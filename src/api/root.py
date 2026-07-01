@@ -9,7 +9,6 @@ from src.services.tw import TimeWebService, get_timeweb_service
 from src.services.xui import XuiService, get_xui_service
 
 router = APIRouter(
-    prefix="/api",
     tags=["root"],
     dependencies=[Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))],
 )

@@ -14,8 +14,12 @@ services:
       DB__URL: sqlite+aiosqlite:////app/database/data.db
     volumes:
       - ./database:/app/database
-      - ./src:/app/src
       - ./main.py:/app/main.py
+      - ./src/api:/app/src/api
+      - ./src/core:/app/src/core
+      - ./src/models:/app/src/models
+      - ./src/schemas:/app/src/schemas
+      - ./src/services:/app/src/services
     restart: unless-stopped
 
   sqlite-web:

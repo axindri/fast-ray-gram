@@ -12,10 +12,6 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": apiProxy,
-      "/user": apiProxy,
-      "/admin": apiProxy,
-      "/tw": apiProxy,
-      "/xui": apiProxy,
     },
   },
   build: {
