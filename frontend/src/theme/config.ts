@@ -4,7 +4,7 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export type ResolvedTheme = "light" | "dark";
 
-export type AccentId = "default" | "pink" | "blue" | "neon" | "mint";
+export type AccentId = "default" | "pink" | "blue" | "neon" | "mint" | "amber" | "emerald" | "indigo" | "rose" | "slate" | "violet" | "lime" | "cyan";
 
 export const THEME_STORAGE_KEY = "theme";
 export const ACCENT_STORAGE_KEY = "accent";
@@ -12,9 +12,16 @@ export const ACCENT_STORAGE_KEY = "accent";
 export const ACCENT_PRESETS: { id: AccentId; label: string; color: string }[] = [
   { id: "default", label: "Стандарт", color: "#1677ff" },
   { id: "pink", label: "Розовый", color: "#ec4899" },
-  { id: "blue", label: "Синий", color: "#2563eb" },
   { id: "neon", label: "Неон", color: "#b829f6" },
   { id: "mint", label: "Бирюза", color: "#14b8a6" },
+  { id: "amber", label: "Янтарь", color: "#f59e0b" },
+  { id: "emerald", label: "Изумруд", color: "#10b981" },
+  { id: "indigo", label: "Индиго", color: "#6366f1" },
+  { id: "rose", label: "Роза", color: "#f43f5e" },
+  { id: "slate", label: "Грифель", color: "#64748b" },
+  { id: "violet", label: "Фиалка", color: "#8b5cf6" },
+  { id: "lime", label: "Лайм", color: "#84cc16" },
+  { id: "cyan", label: "Циан", color: "#06b6d4" }
 ];
 
 const accentColorById = Object.fromEntries(ACCENT_PRESETS.map((preset) => [preset.id, preset.color])) as Record<AccentId, string>;
