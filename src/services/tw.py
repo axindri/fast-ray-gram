@@ -128,7 +128,12 @@ class TimeWebService:
             await db.commit()
 
         for payment in payments:
-            invoice = await db.execute(select(Invoice).where(Invoice.invoice_id == payment.invoice))
+            invoice = await db.execute(
+                select(Invoice).where(
+                    Invoice.invoice_id == payment.invoice,
+                    Invoice.status == InvoiceStatus.PENDING,
+                )
+            )
             invoice = invoice.scalar_one_or_none()
             if invoice is not None:
                 invoice.status = InvoiceStatus.PAID
