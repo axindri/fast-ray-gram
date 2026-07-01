@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { DollarOutlined, LogoutOutlined, MenuOutlined, MonitorOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
+import { useMemo, useState } from "react";
+import { LogoutOutlined, MenuOutlined } from "@ant-design/icons";
 import { Button, Drawer, Flex, Layout, Menu, Space, Typography, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth";
 import { ServiceStatusBanner } from "../components/ServiceStatusBanner";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { NAV_ITEMS } from "../config/navigation";
 import { ServiceStatusProvider } from "../hooks/useServiceStatus";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTheme } from "../theme/ThemeProvider";
 import { getSidebarBg } from "../theme/config";
 import { isAdminRole } from "../types";
@@ -14,15 +16,9 @@ import { isAdminRole } from "../types";
 const { Header, Sider, Content, Footer } = Layout;
 const { Text, Title } = Typography;
 
-const ALL_MENU_ITEMS = [
-  { key: "/profile", icon: <UserOutlined />, label: "Профиль" },
-  { key: "/monitoring", icon: <MonitorOutlined />, label: "Мониторинг", adminOnly: true },
-  { key: "/payments", icon: <DollarOutlined />, label: "Платежи", adminOnly: true },
-  { key: "/users", icon: <TeamOutlined />, label: "Пользователи", adminOnly: true },
-];
-
 const HEADER_BG = "#000000";
 const HEADER_TEXT = "#ffffff";
+const MOBILE_BREAKPOINT = "(max-width: 991.98px)";
 
 export function AppLayout() {
   const { token } = theme.useToken();
@@ -30,38 +26,24 @@ export function AppLayout() {
   const { resolved } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 991.98px)").matches);
+  const mobile = useMediaQuery(MOBILE_BREAKPOINT);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const menuTheme = resolved === "dark" ? "dark" : "light";
   const sidebarBg = getSidebarBg(resolved);
 
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 991.98px)");
-    const sync = () => {
-      setMobile(media.matches);
-      if (media.matches) {
-        setMenuOpen(false);
-      }
-    };
-
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
-
   const menuItems = useMemo(() => {
     const showAdmin = user ? isAdminRole(user.role) : false;
-    return ALL_MENU_ITEMS.filter((item) => !item.adminOnly || showAdmin).map(({ key, icon, label }) => ({
-      key,
-      icon,
+    return NAV_ITEMS.filter((item) => !item.adminOnly || showAdmin).map(({ path, Icon, label }) => ({
+      key: path,
+      icon: <Icon />,
       label,
     }));
   }, [user]);
 
   const selectedKey = useMemo(() => {
-    const match = ALL_MENU_ITEMS.find((item) => location.pathname.startsWith(item.key));
-    return match ? [match.key] : [];
+    const match = NAV_ITEMS.find((item) => location.pathname.startsWith(item.path));
+    return match ? [match.path] : [];
   }, [location.pathname]);
 
   const onMenuClick = ({ key }: { key: string }) => {
@@ -123,7 +105,7 @@ export function AppLayout() {
             <Footer style={footerStyle}>
               <Space wrap style={{ justifyContent: "center" }}>
                 <Text type="secondary" style={{ paddingRight: 8, paddingLeft: 8 }}>
-                  v1.4.3
+                  v2.0.0
                 </Text>
                 <ThemeToggle />
                 <Button

@@ -49,3 +49,7 @@ docker compose up -d --build
 ```
 
 - http://localhost:8000 — приложение
+
+## Документация
+
+- [Frontend](docs/frontend.md) — структура SPA, компоненты, страницы

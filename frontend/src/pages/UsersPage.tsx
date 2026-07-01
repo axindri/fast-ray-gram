@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CopyOutlined, ReloadOutlined } from "@ant-design/icons";
-import { App, Button, Card, Col, Empty, Flex, Form, Input, InputNumber, Popconfirm, Row, Select, Space, Spin, Tag, Typography } from "antd";
+import { ReloadOutlined } from "@ant-design/icons";
+import { App, Button, Col, Form, Input, InputNumber, Row, Select, Space } from "antd";
 
 import {
   buildAuthLink,
@@ -11,18 +11,24 @@ import {
   fetchUserById,
   fetchUsers,
   fetchXuiClient,
-  formatDate,
-  formatExpiryRemaining,
   refreshUserToken,
   resetXuiClientTraffic,
   updateUserRole,
   updateXuiClient,
 } from "../api";
+import { AdminPageColumn, AdminPageLayout } from "../components/AdminPageLayout";
+import { AsyncListState } from "../components/AsyncListState";
+import { CopyableInput } from "../components/CopyableInput";
+import { LookupActionForm } from "../components/LookupActionForm";
+import { PaginationFooter } from "../components/PaginationFooter";
+import { SectionCard } from "../components/SectionCard";
+import { UserCard } from "../components/UserCard";
+import { UserLookupPanel, type UserLookupState } from "../components/UserLookupPanel";
+import { XuiClientCard } from "../components/XuiClientCard";
 import { useAuth } from "../auth";
-import { ROLE_LABELS, type AdminUser, type Paginated, type UserRole, type XuiClient } from "../types";
-import { copyToClipboard } from "../utils/clipboard";
-
-const { Title, Text, Link } = Typography;
+import { getApiErrorMessage } from "../utils/apiError";
+import { emptyPaginated } from "../utils/pagination";
+import { ROLE_LABELS, type AdminUser, type Paginated, type UserRole } from "../types";
 
 type CreateUserForm = {
   username: string;
@@ -49,141 +55,6 @@ type XuiUpdateForm = {
   enable: boolean;
 };
 
-function CopyField({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
-  const { message } = App.useApp();
-
-  return (
-    <Space orientation="vertical" size={4} style={{ width: "100%" }}>
-      <Text type="secondary">{label}</Text>
-      <Space.Compact style={{ width: "100%" }}>
-        <Input value={value} readOnly style={highlight ? { fontWeight: 600 } : undefined} />
-        <Button
-          onClick={() => {
-            void copyToClipboard(value)
-              .then(() => message.success("Скопировано"))
-              .catch(() => message.error("Не удалось скопировать"));
-          }}
-        >
-          Скопировать
-        </Button>
-      </Space.Compact>
-    </Space>
-  );
-}
-
-type UserLookupState = "idle" | "found" | "not_found";
-
-function UserLookupPanel({ loading, lookup, user }: { loading: boolean; lookup: UserLookupState; user: AdminUser | null }) {
-  if (loading) {
-    return (
-      <div style={{ marginTop: 16 }}>
-        <Text type="secondary">Загружаю...</Text>
-      </div>
-    );
-  }
-
-  if (lookup === "not_found") {
-    return (
-      <div style={{ marginTop: 16 }}>
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Пользователь не найден" />
-      </div>
-    );
-  }
-
-  if (user) {
-    return (
-      <div style={{ marginTop: 16 }}>
-        <UserRow user={user} />
-      </div>
-    );
-  }
-
-  return null;
-}
-
-function UserRow({ user }: { user: AdminUser }) {
-  return (
-    <Card size="small" title={user.username} extra={<Tag color="blue">{ROLE_LABELS[user.role]}</Tag>}>
-      <Space orientation="vertical" size={4} style={{ width: "100%" }}>
-        <Text type="secondary">ID: {user.id}</Text>
-        {user.mark ? <Text type="secondary">Заметка: {user.mark}</Text> : <Text type="secondary">-</Text>}
-        {user.sub_url ? (
-          <Link href={user.sub_url} target="_blank">
-            Ссылка подписки
-          </Link>
-        ) : null}
-      </Space>
-    </Card>
-  );
-}
-
-const emptyUsersPagination = (): Paginated<AdminUser> => ({
-  items: [],
-  total: 0,
-  page: 1,
-  limit: 20,
-  pages: 1,
-});
-
-function formatTraffic(usedBytes: number, totalGb: number): string {
-  const usedGb = (usedBytes / 1024 ** 3).toFixed(2);
-
-  if (!totalGb) {
-    return `${usedGb} GB / без лимита`;
-  }
-
-  return `${usedGb} / ${totalGb} GB`;
-}
-
-function XuiClientDetails({ client }: { client: XuiClient }) {
-  const { message } = App.useApp();
-  const expiryRemaining = formatExpiryRemaining(client.expiry_datetime);
-
-  return (
-    <Card
-      title={
-        <Flex align="center" gap={8}>
-          <span>{client.email}</span>
-        </Flex>
-      }
-      extra={
-        <Tag color={client.enable ? "green" : "red"} style={{ marginInlineStart: 4 }}>
-          {client.enable ? "Включён" : "Выключен"}
-        </Tag>
-      }
-    >
-      <Space orientation="vertical" size={12} style={{ width: "100%" }}>
-        <Text>
-          Трафик: <Text strong>{formatTraffic(client.used_traffic, client.total_gb)}</Text>
-        </Text>
-        <Text>
-          Действует до: {formatDate(client.expiry_datetime)}
-          {expiryRemaining ? ` · ${expiryRemaining}` : null}
-        </Text>
-
-        {client.sub_url ? (
-          <div style={{ marginTop: 12 }}>
-            <Text style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>Ссылка подписки</Text>
-
-            <Space.Compact style={{ width: "100%", maxWidth: 640 }}>
-              <Input value={client.sub_url} readOnly />
-              <Button
-                icon={<CopyOutlined />}
-                aria-label="Скопировать"
-                onClick={() =>
-                  void copyToClipboard(client.sub_url)
-                    .then(() => message.success("Скопировано"))
-                    .catch(() => message.error("Не удалось скопировать"))
-                }
-              />
-            </Space.Compact>
-          </div>
-        ) : null}
-      </Space>
-    </Card>
-  );
-}
-
 export function UsersPage() {
   const { message } = App.useApp();
   const { user: currentUser } = useAuth();
@@ -205,11 +76,11 @@ export function UsersPage() {
 
   const [xuiGetLoading, setXuiGetLoading] = useState(false);
   const [xuiUpdateLoading, setXuiUpdateLoading] = useState(false);
-  const [xuiClient, setXuiClient] = useState<XuiClient | null>(null);
+  const [xuiClient, setXuiClient] = useState<Awaited<ReturnType<typeof fetchXuiClient>> | null>(null);
   const [xuiGetForm] = Form.useForm<XuiGetForm>();
   const [xuiUpdateForm] = Form.useForm<XuiUpdateForm>();
 
-  const [allUsers, setAllUsers] = useState<Paginated<AdminUser>>(emptyUsersPagination);
+  const [allUsers, setAllUsers] = useState<Paginated<AdminUser>>(emptyPaginated);
   const [allUsersLoading, setAllUsersLoading] = useState(false);
 
   const loadAllUsers = useCallback(
@@ -217,10 +88,9 @@ export function UsersPage() {
       setAllUsersLoading(true);
 
       try {
-        const data = await fetchUsers(page, allUsers.limit);
-        setAllUsers(data);
+        setAllUsers(await fetchUsers(page, allUsers.limit));
       } catch (error) {
-        message.error(error instanceof Error ? error.message : "Не удалось загрузить пользователей");
+        message.error(getApiErrorMessage(error, "Не удалось загрузить пользователей"));
       } finally {
         setAllUsersLoading(false);
       }
@@ -270,7 +140,7 @@ export function UsersPage() {
       message.success("Пользователь создан");
       await loadAllUsers(1);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось создать пользователя");
+      message.error(getApiErrorMessage(error, "Не удалось создать пользователя"));
     } finally {
       setCreateLoading(false);
     }
@@ -303,7 +173,7 @@ export function UsersPage() {
         setManagedUser(null);
         setUserLookup("not_found");
       }
-      message.error(error instanceof Error ? error.message : "Не удалось выполнить действие");
+      message.error(getApiErrorMessage(error, "Не удалось выполнить действие"));
     } finally {
       setUserGetLoading(false);
     }
@@ -315,11 +185,10 @@ export function UsersPage() {
     setAuthLink("");
 
     try {
-      const token = await refreshUserToken(id);
-      setAuthLink(buildAuthLink(token));
+      setAuthLink(buildAuthLink(await refreshUserToken(id)));
       message.success("Токен обновлён");
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось выполнить действие");
+      message.error(getApiErrorMessage(error, "Не удалось выполнить действие"));
     } finally {
       setUserActionsLoading(false);
     }
@@ -343,7 +212,7 @@ export function UsersPage() {
       message.success("Роль обновлена");
       await loadAllUsers(allUsers.page);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось обновить роль");
+      message.error(getApiErrorMessage(error, "Не удалось обновить роль"));
     } finally {
       setUserActionsLoading(false);
     }
@@ -359,8 +228,7 @@ export function UsersPage() {
 
     try {
       if (action === "get") {
-        const client = await fetchXuiClient(email);
-        setXuiClient(client);
+        setXuiClient(await fetchXuiClient(email));
         return;
       }
 
@@ -371,7 +239,7 @@ export function UsersPage() {
       if (action === "get") {
         setXuiClient(null);
       }
-      message.error(error instanceof Error ? error.message : "Не удалось выполнить действие");
+      message.error(getApiErrorMessage(error, "Не удалось выполнить действие"));
     } finally {
       setXuiGetLoading(false);
     }
@@ -394,236 +262,201 @@ export function UsersPage() {
       await resetXuiClientTraffic(values.email);
       message.success("Трафик сброшен");
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось выполнить действие");
+      message.error(getApiErrorMessage(error, "Не удалось выполнить действие"));
     } finally {
       setXuiUpdateLoading(false);
     }
   };
 
   return (
-    <>
-      <Title level={3} style={{ marginTop: 0 }}>
-        Пользователи
-      </Title>
+    <AdminPageLayout title="Пользователи">
+      <AdminPageColumn>
+        <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+          <SectionCard title="Создать пользователя" hint="Будет создан пользователь и его XUI-клиент">
+            <Form form={createForm} layout="vertical" onFinish={onCreateUser} initialValues={{ role: "user" }}>
+              <Form.Item label="Username" name="username" rules={[{ required: true, message: "Введите username" }]}>
+                <Input placeholder="Alex" />
+              </Form.Item>
 
-      <Row gutter={[16, 16]} align="top" style={{ width: "100%" }}>
-        <Col xs={24} xl={12}>
-          <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-            <Card title="Создать пользователя">
-              <Text type="secondary">Будет создан пользователь и его XUI-клиент</Text>
-              <Form form={createForm} layout="vertical" onFinish={onCreateUser} initialValues={{ role: "user" }} style={{ marginTop: 16 }}>
-                <Form.Item label="Username" name="username" rules={[{ required: true, message: "Введите username" }]}>
-                  <Input placeholder="Alex" />
-                </Form.Item>
+              <Form.Item label="Роль" name="role" rules={[{ required: true }]}>
+                <Select options={roleOptions} />
+              </Form.Item>
 
-                <Form.Item label="Роль" name="role" rules={[{ required: true }]}>
-                  <Select options={roleOptions} />
-                </Form.Item>
+              <Form.Item label="Заметка" name="mark">
+                <Input placeholder="Заметка или комментарий" />
+              </Form.Item>
 
-                <Form.Item label="Заметка" name="mark">
-                  <Input placeholder="Заметка или комментарий" />
-                </Form.Item>
+              <Form.Item label="Flow" name="flow">
+                <Input placeholder="xtls-rprx-vision" />
+              </Form.Item>
 
-                <Form.Item label="Flow" name="flow">
-                  <Input placeholder="xtls-rprx-vision" />
-                </Form.Item>
+              <Row gutter={12}>
+                <Col xs={24} md={8}>
+                  <Form.Item label="Лимит IP" name="limit_ips">
+                    <InputNumber style={{ width: "100%" }} placeholder="0" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Form.Item label="Объем трафика" name="total_gb">
+                    <InputNumber style={{ width: "100%" }} placeholder="0" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Form.Item label="Срок действия" name="expiry_time_days">
+                    <InputNumber style={{ width: "100%" }} placeholder={String(defaultExpiryDays)} />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-                <Row gutter={12}>
-                  <Col xs={24} md={8}>
-                    <Form.Item label="Лимит IP" name="limit_ips">
-                      <InputNumber style={{ width: "100%" }} placeholder="0" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} md={8}>
-                    <Form.Item label="Объем трафика" name="total_gb">
-                      <InputNumber style={{ width: "100%" }} placeholder="0" />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} md={8}>
-                    <Form.Item label="Срок действия" name="expiry_time_days">
-                      <InputNumber style={{ width: "100%" }} placeholder={String(defaultExpiryDays)} />
-                    </Form.Item>
-                  </Col>
-                </Row>
+              <Button type="primary" htmlType="submit" loading={createLoading}>
+                Создать
+              </Button>
+            </Form>
 
-                <Button type="primary" htmlType="submit" loading={createLoading}>
-                  Создать
-                </Button>
-              </Form>
+            {createdAuthLink ? <CopyableInput label="Ссылка для входа" value={createdAuthLink} /> : null}
+          </SectionCard>
 
-              {createdAuthLink ? <CopyField label="Ссылка для входа" value={createdAuthLink} /> : null}
-            </Card>
+          <SectionCard title="Получить пользователя" hint="Просмотр данных пользователя и удаление">
+            <Form form={userGetForm} layout="vertical">
+              <LookupActionForm
+                label="User ID"
+                name="id"
+                input={<InputNumber placeholder="1" style={{ width: "100%" }} />}
+                loading={userGetLoading}
+                onGet={() => void runUserGetAction("get")}
+                onDelete={() => void runUserGetAction("delete")}
+                deleteConfirmTitle="Удалить пользователя?"
+                rules={[{ required: true, message: "Введите ID" }]}
+                result={<UserLookupPanel loading={userGetLoading} lookup={userLookup} user={managedUser} />}
+              />
+            </Form>
+          </SectionCard>
 
-            <Card title="Получить пользователя">
-              <Text type="secondary">Просмотр данных пользователя и удаление</Text>
-              <Form form={userGetForm} layout="vertical" style={{ marginTop: 16 }}>
-                <Form.Item label="User ID" style={{ marginBottom: 0 }}>
-                  <Space.Compact block>
-                    <Form.Item name="id" noStyle rules={[{ required: true, message: "Введите ID" }]}>
-                      <InputNumber placeholder="1" style={{ width: "100%" }} />
-                    </Form.Item>
-                    <Button loading={userGetLoading} onClick={() => void runUserGetAction("get")}>
-                      Получить
-                    </Button>
-                    <Popconfirm title="Удалить пользователя?" okText="Да" cancelText="Нет" okButtonProps={{ danger: true }} onConfirm={() => void runUserGetAction("delete")}>
-                      <Button danger loading={userGetLoading}>
-                        Удалить
-                      </Button>
-                    </Popconfirm>
-                  </Space.Compact>
-                </Form.Item>
+          <SectionCard title="Действия с пользователем" hint="Новая ссылка для входа и смена роли по ID">
+            <Form form={userActionsForm} layout="vertical" initialValues={{ role: "user" }}>
+              <Form.Item label="User ID" name="id" rules={[{ required: true, message: "Введите ID" }]}>
+                <InputNumber style={{ width: "100%" }} placeholder="1" />
+              </Form.Item>
 
-                <UserLookupPanel loading={userGetLoading} lookup={userLookup} user={managedUser} />
-              </Form>
-            </Card>
+              <Button type="primary" loading={userActionsLoading} onClick={() => void runUserRefreshAction()} style={{ marginBottom: authLink ? 0 : 16 }}>
+                Новая ссылка для входа
+              </Button>
 
-            <Card title="Действия с пользователем">
-              <Text type="secondary">Новая ссылка для входа и смена роли по ID</Text>
-              <Form form={userActionsForm} layout="vertical" initialValues={{ role: "user" }} style={{ marginTop: 16 }}>
-                <Form.Item label="User ID" name="id" rules={[{ required: true, message: "Введите ID" }]}>
-                  <InputNumber style={{ width: "100%" }} placeholder="1" />
-                </Form.Item>
+              {authLink ? (
+                <div style={{ marginTop: 16, marginBottom: 16 }}>
+                  <CopyableInput label="Ссылка для входа" value={authLink} />
+                </div>
+              ) : null}
 
-                <Button type="primary" loading={userActionsLoading} onClick={() => void runUserRefreshAction()} style={{ marginBottom: authLink ? 0 : 16 }}>
-                  Новая ссылка для входа
-                </Button>
+              <Form.Item label="Роль" name="role" rules={[{ required: true }]}>
+                <Select options={roleOptions} />
+              </Form.Item>
 
-                {authLink ? (
-                  <div style={{ marginTop: 16, marginBottom: 16 }}>
-                    <CopyField label="Ссылка для входа" value={authLink} />
-                  </div>
-                ) : null}
+              <Button type="primary" loading={userActionsLoading} onClick={() => void onUpdateUserRole()}>
+                Сохранить роль
+              </Button>
 
-                <Form.Item label="Роль" name="role" rules={[{ required: true }]}>
-                  <Select options={roleOptions} />
-                </Form.Item>
+              {updatedRoleUser ? (
+                <div style={{ marginTop: 16 }}>
+                  <UserCard user={updatedRoleUser} />
+                </div>
+              ) : null}
 
-                <Button type="primary" loading={userActionsLoading} onClick={() => void onUpdateUserRole()}>
-                  Сохранить роль
-                </Button>
+              {roleAuthLink ? (
+                <div style={{ marginTop: 16 }}>
+                  <CopyableInput label="Ссылка для входа" value={roleAuthLink} />
+                </div>
+              ) : null}
+            </Form>
+          </SectionCard>
+        </Space>
+      </AdminPageColumn>
 
-                {updatedRoleUser ? (
-                  <div style={{ marginTop: 16 }}>
-                    <UserRow user={updatedRoleUser} />
-                  </div>
-                ) : null}
+      <AdminPageColumn>
+        <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+          <SectionCard title="Просмотр XUI клиента" hint="Просмотр данных клиента и удаление">
+            <Form form={xuiGetForm} layout="vertical">
+              <LookupActionForm
+                label="Username"
+                name="email"
+                input={<Input placeholder="Alex" style={{ width: "100%" }} />}
+                loading={xuiGetLoading}
+                onGet={() => void runXuiGetAction("get")}
+                onDelete={() => void runXuiGetAction("delete")}
+                deleteConfirmTitle="Удалить XUI-клиента?"
+                rules={[{ required: true, message: "Введите имя пользователя" }]}
+                result={
+                  xuiClient ? (
+                    <div style={{ marginTop: 16 }}>
+                      <XuiClientCard client={xuiClient} variant="admin" />
+                    </div>
+                  ) : null
+                }
+              />
+            </Form>
+          </SectionCard>
 
-                {roleAuthLink ? (
-                  <div style={{ marginTop: 16 }}>
-                    <CopyField label="Ссылка для входа" value={roleAuthLink} />
-                  </div>
-                ) : null}
-              </Form>
-            </Card>
-          </Space>
-        </Col>
+          <SectionCard title="Действия с XUI клиентом" hint="Срок действия, статус и сброс трафика">
+            <Form form={xuiUpdateForm} layout="vertical" initialValues={{ enable: true }}>
+              <Form.Item label="Username" name="email" rules={[{ required: true, message: "Введите имя пользователя" }]}>
+                <Input placeholder="Alex" />
+              </Form.Item>
 
-        <Col xs={24} xl={12}>
-          <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-            <Card title="Просмотр XUI клиента">
-              <Text type="secondary">Просмотр данных клиента и удаление</Text>
-              <Form form={xuiGetForm} layout="vertical" style={{ marginTop: 16 }}>
-                <Form.Item label="Username" style={{ marginBottom: 0 }}>
-                  <Space.Compact block>
-                    <Form.Item name="email" noStyle rules={[{ required: true, message: "Введите имя пользователя" }]}>
-                      <Input placeholder="Alex" style={{ width: "100%" }} />
-                    </Form.Item>
-                    <Button loading={xuiGetLoading} onClick={() => void runXuiGetAction("get")}>
-                      Получить
-                    </Button>
-                    <Popconfirm title="Удалить XUI-клиента?" okText="Да" cancelText="Нет" okButtonProps={{ danger: true }} onConfirm={() => void runXuiGetAction("delete")}>
-                      <Button danger loading={xuiGetLoading}>
-                        Удалить
-                      </Button>
-                    </Popconfirm>
-                  </Space.Compact>
-                </Form.Item>
+              <Row gutter={12}>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Срок действия, дней" name="expiry_time_days">
+                    <InputNumber style={{ width: "100%" }} placeholder={String(defaultExpiryDays)} />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Включен по-умолчанию" name="enable">
+                    <Select
+                      options={[
+                        { value: true, label: "Да" },
+                        { value: false, label: "Нет" },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-                {xuiClient ? (
-                  <div style={{ marginTop: 16 }}>
-                    <XuiClientDetails client={xuiClient} />
-                  </div>
-                ) : null}
-              </Form>
-            </Card>
-
-            <Card title="Действия с XUI клиентом">
-              <Text type="secondary">Срок действия, статус и сброс трафика</Text>
-              <Form form={xuiUpdateForm} layout="vertical" initialValues={{ enable: true }} style={{ marginTop: 16 }}>
-                <Form.Item label="Username" name="email" rules={[{ required: true, message: "Введите имя пользователя" }]}>
-                  <Input placeholder="Alex" />
-                </Form.Item>
-
-                <Row gutter={12}>
-                  <Col xs={24} md={12}>
-                    <Form.Item label="Срок действия, дней" name="expiry_time_days">
-                      <InputNumber style={{ width: "100%" }} placeholder={String(defaultExpiryDays)} />
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} md={12}>
-                    <Form.Item label="Включен по-умолчанию" name="enable">
-                      <Select
-                        options={[
-                          { value: true, label: "Да" },
-                          { value: false, label: "Нет" },
-                        ]}
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
-
-                <Space wrap>
-                  <Button type="primary" loading={xuiUpdateLoading} onClick={() => void runXuiUpdateAction("update")}>
-                    Обновить
-                  </Button>
-                  <Button loading={xuiUpdateLoading} onClick={() => void runXuiUpdateAction("reset")}>
-                    Сбросить трафик
-                  </Button>
-                </Space>
-              </Form>
-            </Card>
-
-            <Card
-              title="Все пользователи"
-              extra={
-                <Button icon={<ReloadOutlined />} onClick={() => void loadAllUsers(allUsers.page)} loading={allUsersLoading}>
+              <Space wrap>
+                <Button type="primary" loading={xuiUpdateLoading} onClick={() => void runXuiUpdateAction("update")}>
                   Обновить
                 </Button>
-              }
-            >
-              <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-                {allUsersLoading && !allUsers.items.length ? (
-                  <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
-                    <Spin size="large" />
-                  </div>
-                ) : null}
-
-                {!allUsersLoading && !allUsers.items.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Пользователей нет" /> : null}
-
-                {allUsers.items.map((item) => (
-                  <UserRow key={item.id} user={item} />
-                ))}
-
-                {allUsers.total > 0 ? (
-                  <Space wrap style={{ justifyContent: "space-between", width: "100%" }}>
-                    <Text type="secondary">
-                      Страница {allUsers.page} из {allUsers.pages} · всего {allUsers.total}
-                    </Text>
-                    <Space>
-                      <Button disabled={allUsers.page <= 1 || allUsersLoading} onClick={() => void loadAllUsers(allUsers.page - 1)}>
-                        Назад
-                      </Button>
-                      <Button disabled={allUsers.page >= allUsers.pages || allUsersLoading} onClick={() => void loadAllUsers(allUsers.page + 1)}>
-                        Вперёд
-                      </Button>
-                    </Space>
-                  </Space>
-                ) : null}
+                <Button loading={xuiUpdateLoading} onClick={() => void runXuiUpdateAction("reset")}>
+                  Сбросить трафик
+                </Button>
               </Space>
-            </Card>
-          </Space>
-        </Col>
-      </Row>
-    </>
+            </Form>
+          </SectionCard>
+
+          <SectionCard
+            title="Все пользователи"
+            extra={
+              <Button icon={<ReloadOutlined />} onClick={() => void loadAllUsers(allUsers.page)} loading={allUsersLoading}>
+                Обновить
+              </Button>
+            }
+          >
+            <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+              <AsyncListState loading={allUsersLoading} empty={!allUsers.items.length} emptyDescription="Пользователей нет" minHeight={80}>
+                {allUsers.items.map((item) => (
+                  <UserCard key={item.id} user={item} />
+                ))}
+              </AsyncListState>
+
+              <PaginationFooter
+                page={allUsers.page}
+                pages={allUsers.pages}
+                total={allUsers.total}
+                loading={allUsersLoading}
+                onPageChange={(page) => void loadAllUsers(page)}
+              />
+            </Space>
+          </SectionCard>
+        </Space>
+      </AdminPageColumn>
+    </AdminPageLayout>
   );
 }

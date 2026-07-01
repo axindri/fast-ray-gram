@@ -1,26 +1,26 @@
-import { AppstoreOutlined, CopyOutlined, DollarOutlined, FileOutlined, LoadingOutlined, MonitorOutlined, ReloadOutlined, TeamOutlined, UserOutlined, WifiOutlined } from "@ant-design/icons";
-import { App, Button, Card, Empty, Flex, Form, Input, InputNumber, Space, Spin, Tag, Typography } from "antd";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AppstoreOutlined, DollarOutlined, FileOutlined, LoadingOutlined, ReloadOutlined, UserOutlined } from "@ant-design/icons";
+import { App, Button, Card, Flex, Form, InputNumber, Space, Spin, Tag, Typography } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { createInvoice, fetchConfig, fetchXuiMe, formatDate, formatExpiryRemaining, canRenewSubscription } from "../api";
-import { useAuth } from "../auth";
+import { createInvoice, fetchConfig, fetchXuiMe, canRenewSubscription } from "../api";
+import { AsyncListState } from "../components/AsyncListState";
+import { InvoiceCard } from "../components/InvoiceCard";
+import { SectionCard } from "../components/SectionCard";
 import { ThemedIconAvatar } from "../components/ThemedIconAvatar";
+import { XuiClientCard } from "../components/XuiClientCard";
+import { filterNavItems } from "../config/navigation";
+import { useAuth } from "../auth";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useServiceStatus } from "../hooks/useServiceStatus";
-import { INVOICE_STATUS_LABELS, ROLE_LABELS, invoiceStatusColor, isAdminRole, type Invoice, type UserRole, type XuiClient } from "../types";
-import { copyToClipboard } from "../utils/clipboard";
+import { getApiErrorMessage } from "../utils/apiError";
+import { avatarLetter, displayName } from "../utils/format";
+import { ROLE_LABELS, type UserRole } from "../types";
 
 const { Title, Text } = Typography;
 
-const APP_SECTIONS: { path: string; label: string; hint: string; icon: ReactNode; adminOnly?: boolean }[] = [
-  { path: "/profile", label: "Профиль", hint: "Подписка и платежи", icon: <UserOutlined /> },
-  { path: "/monitoring", label: "Мониторинг", hint: "Статус сервисов и ссылки на панели", icon: <MonitorOutlined />, adminOnly: true },
-  { path: "/payments", label: "Платежи", hint: "Проверка и управление счетами к оплате", icon: <DollarOutlined />, adminOnly: true },
-  { path: "/users", label: "Пользователи", hint: "Создание пользователей и XUI-клиентов", icon: <TeamOutlined />, adminOnly: true },
-];
-
 function AvailableSectionsCard({ role }: { role: UserRole }) {
-  const sections = useMemo(() => APP_SECTIONS.filter((section) => (!section.adminOnly || isAdminRole(role)) && section.path !== "/profile"), [role]);
+  const sections = useMemo(() => filterNavItems(role, { excludePaths: ["/profile"] }), [role]);
 
   if (!sections.length) {
     return null;
@@ -36,11 +36,11 @@ function AvailableSectionsCard({ role }: { role: UserRole }) {
       }
     >
       <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-        {sections.map(({ path, label, hint, icon }) => (
+        {sections.map(({ path, label, hint, Icon }) => (
           <Link key={path} to={path} style={{ display: "block", color: "inherit" }}>
             <Card size="small" styles={{ body: { padding: 12 } }}>
               <Flex align="center" gap={12}>
-                <ThemedIconAvatar shape="square" size="small" icon={icon} />
+                <ThemedIconAvatar shape="square" size="small" icon={<Icon />} />
                 <Flex vertical gap={0}>
                   <Text strong>{label}</Text>
                   <Text type="secondary">{hint}</Text>
@@ -49,109 +49,6 @@ function AvailableSectionsCard({ role }: { role: UserRole }) {
             </Card>
           </Link>
         ))}
-      </Space>
-    </Card>
-  );
-}
-
-function displayName(username: string) {
-  const name = username.includes("@") ? username.split("@")[0] : username;
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
-function avatarLetter(username: string) {
-  return displayName(username).charAt(0).toUpperCase();
-}
-
-function formatTraffic(usedBytes: number, totalGb: number): string {
-  const usedGb = (usedBytes / 1024 ** 3).toFixed(2);
-
-  if (!totalGb) {
-    return `${usedGb} GB / без лимита`;
-  }
-
-  return `${usedGb} / ${totalGb} GB`;
-}
-
-function formatLimitIps(limitIps: number): string {
-  if (!limitIps) {
-    return "без лимита";
-  }
-
-  return String(limitIps);
-}
-
-function XuiSubscriptionCard({ client }: { client: XuiClient }) {
-  const { message } = App.useApp();
-  const expiryRemaining = formatExpiryRemaining(client.expiry_datetime);
-
-  return (
-    <Card
-      title={
-        <Flex align="center" gap={8}>
-          <ThemedIconAvatar shape="square" size="small" icon={<WifiOutlined />} />
-          <span>Подписка</span>
-        </Flex>
-      }
-      extra={
-        <Tag color={client.enable ? "green" : "red"} style={{ marginInlineStart: 4 }}>
-          {client.enable ? "Включена" : "Выключена"}
-        </Tag>
-      }
-    >
-      <Space orientation="vertical" size={12} style={{ width: "100%" }}>
-        <Text>
-          Трафик: <Text strong>{formatTraffic(client.used_traffic, client.total_gb)}</Text>
-        </Text>
-        <Text>
-          Лимит IP: <Text strong>{formatLimitIps(client.limit_ips)}</Text>
-        </Text>
-        <Text>
-          Действует до: {formatDate(client.expiry_datetime)}
-          {expiryRemaining ? ` · ${expiryRemaining}` : null}
-        </Text>
-
-        {client.sub_url ? (
-          <div style={{ marginTop: 12 }}>
-            <Text style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>Добавьте ссылку в VPN-клиент для подключения</Text>
-
-            <Space.Compact style={{ width: "100%", maxWidth: 640 }}>
-              <Input value={client.sub_url} readOnly />
-              <Button
-                icon={<CopyOutlined />}
-                aria-label="Скопировать"
-                onClick={() =>
-                  void copyToClipboard(client.sub_url)
-                    .then(() => message.success("Скопировано"))
-                    .catch(() => message.error("Не удалось скопировать"))
-                }
-              />
-            </Space.Compact>
-          </div>
-        ) : null}
-      </Space>
-    </Card>
-  );
-}
-
-function ProfileInvoiceCard({ item, paymentBlocked, canRenew }: { item: Invoice; paymentBlocked: boolean; canRenew: boolean }) {
-  const status = String(item.status || "").toLowerCase();
-  const isPending = status === "pending";
-  const canPay = isPending && item.confirmation_url && !paymentBlocked && canRenew;
-
-  return (
-    <Card size="small" title={`#${item.invoice_id} · ${item.amount} ₽`} extra={<Tag color={invoiceStatusColor(status)}>{INVOICE_STATUS_LABELS[status] || status || "—"}</Tag>}>
-      <Space orientation="vertical" size={8} style={{ width: "100%" }}>
-        <Text type="secondary">Создан: {formatDate(item.created_at)}</Text>
-        <Text type="secondary">Обновлен: {formatDate(item.updated_at)}</Text>
-
-        {isPending && item.confirmation_url && canRenew ? (
-          <>
-            <Button type="primary" href={item.confirmation_url} target="_blank" rel="noreferrer" disabled={!canPay}>
-              Оплатить
-            </Button>
-          </>
-        ) : null}
       </Space>
     </Card>
   );
@@ -171,18 +68,9 @@ export function ProfilePage() {
   const { loading: statusLoading, paymentBlocked } = useServiceStatus();
   const [profileLoading, setProfileLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [xuiClient, setXuiClient] = useState<XuiClient | null>(null);
+  const [xuiClient, setXuiClient] = useState<Awaited<ReturnType<typeof fetchXuiMe>> | null>(null);
   const [xuiLoading, setXuiLoading] = useState(false);
-  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 991.98px)").matches);
-
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 991.98px)");
-    const sync = () => setMobile(media.matches);
-
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
+  const mobile = useMediaQuery("(max-width: 991.98px)");
 
   const loadXuiClient = async () => {
     setXuiLoading(true);
@@ -259,7 +147,7 @@ export function ProfilePage() {
       await refreshUser();
       message.success("Счёт создан, открыта страница оплаты");
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось создать платёж");
+      message.error(getApiErrorMessage(error, "Не удалось создать платёж"));
     } finally {
       setPaymentLoading(false);
     }
@@ -295,71 +183,61 @@ export function ProfilePage() {
             </Card>
           ) : null}
 
-          {xuiClient ? <XuiSubscriptionCard client={xuiClient} /> : null}
+          {xuiClient ? <XuiClientCard client={xuiClient} variant="profile" /> : null}
 
-          <Card
-            title={
-              <Flex align="center" gap={8}>
-                <ThemedIconAvatar shape="square" size="small" icon={<DollarOutlined />} />
-                <span>Новый счет</span>
-              </Flex>
-            }
-          >
-            <Text type="secondary">Создайте новый счет для оплаты подписки</Text>
-            <Form id="profile-payment-form" form={paymentForm} layout="inline" onFinish={onCreatePayment} style={{ marginTop: 16 }}>
-              <Form.Item
-                label="Сумма, ₽"
-                name="amount"
-                rules={[
-                  { required: true, message: "Введите сумму" },
-                  { type: "number", min: minAmount, max: maxAmount, message: `От ${minAmount} до ${maxAmount} ₽` },
-                ]}
-              >
-                <InputNumber min={minAmount} max={maxAmount} disabled={paymentsDisabled} />
-              </Form.Item>
-              <Form.Item>
-                <Space>
-                  {canRenew ? (
+          {canRenew ? (
+            <SectionCard
+              title={
+                <Flex align="center" gap={8}>
+                  <ThemedIconAvatar shape="square" size="small" icon={<DollarOutlined />} />
+                  <span>Новый счет</span>
+                </Flex>
+              }
+              hint="Создайте новый счет для оплаты подписки"
+            >
+              <Form id="profile-payment-form" form={paymentForm} layout="inline" onFinish={onCreatePayment}>
+                <Form.Item
+                  label="Сумма, ₽"
+                  name="amount"
+                  rules={[
+                    { required: true, message: "Введите сумму" },
+                    { type: "number", min: minAmount, max: maxAmount, message: `От ${minAmount} до ${maxAmount} ₽` },
+                  ]}
+                >
+                  <InputNumber min={minAmount} max={maxAmount} disabled={paymentsDisabled} />
+                </Form.Item>
+                <Form.Item>
+                  <Space>
                     <Button type="primary" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
                       Создать и оплатить
                     </Button>
-                  ) : null}
-                  {statusLoading ? <Spin indicator={<LoadingOutlined spin />} /> : null}
-                </Space>
-              </Form.Item>
-            </Form>
-          </Card>
+                    {statusLoading ? <Spin indicator={<LoadingOutlined spin />} /> : null}
+                  </Space>
+                </Form.Item>
+              </Form>
+            </SectionCard>
+          ) : null}
 
-          <Card
+          <SectionCard
             title={
               <Flex align="center" gap={8}>
                 <ThemedIconAvatar shape="square" size="small" icon={<FileOutlined />} />
                 <span>Мои счета</span>
               </Flex>
             }
+            hint="Здесь вы можете посмотреть свои оплаченные или отмененные счета, а так же оплатить новый счет"
             extra={
               <Button icon={<ReloadOutlined />} loading={profileLoading} onClick={() => void loadProfile()}>
                 Обновить
               </Button>
             }
           >
-            <Text type="secondary">Здесь вы можете посмотреть свои оплаченные или отмененные счета, а так же оплатить новый счет</Text>
-            <div style={{ marginTop: 16 }}>
-              {profileLoading && !invoices.length ? (
-                <Flex justify="center" align="center" style={{ minHeight: 120 }}>
-                  <Spin indicator={<LoadingOutlined spin />} size="large" />
-                </Flex>
-              ) : null}
-
-              {!profileLoading && !invoices.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Счетов пока нет" /> : null}
-
-              <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-                {invoices.map((item) => (
-                  <ProfileInvoiceCard key={item.id} item={item} paymentBlocked={paymentsDisabled} canRenew={canRenew} />
-                ))}
-              </Space>
-            </div>
-          </Card>
+            <AsyncListState loading={profileLoading} empty={!invoices.length} emptyDescription="Счетов пока нет">
+              {invoices.map((item) => (
+                <InvoiceCard key={item.id} item={item} variant="profile" paymentBlocked={paymentsDisabled} canRenew={canRenew} />
+              ))}
+            </AsyncListState>
+          </SectionCard>
           <AvailableSectionsCard role={user.role} />
         </>
       ) : (

@@ -1,68 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
-import { LoadingOutlined, ReloadOutlined } from "@ant-design/icons";
-import { App, Button, Card, Col, Empty, Form, InputNumber, Row, Space, Spin, Tag, Typography } from "antd";
+import { ReloadOutlined } from "@ant-design/icons";
+import { App, Button, Empty, Form, InputNumber, Space } from "antd";
 
-import { cancelInvoice, checkInvoices, fetchInvoices, formatDate } from "../api";
-import { INVOICE_STATUS_LABELS, invoiceStatusColor, type AdminInvoice, type Invoice, type Paginated } from "../types";
-import { copyToClipboard } from "../utils/clipboard";
-
-const { Title, Text, Link } = Typography;
-
-function InvoiceRow({ item, admin = false }: { item: Invoice | AdminInvoice; admin?: boolean }) {
-  const { message } = App.useApp();
-  const adminItem = admin ? (item as AdminInvoice) : null;
-  const status = String(item.status || "").toLowerCase();
-
-  return (
-    <Card
-      size="small"
-      title={`#${item.invoice_id} ${adminItem ? `· ${adminItem.amount} ₽` : ""}`}
-      extra={<Tag color={invoiceStatusColor(status)}>{INVOICE_STATUS_LABELS[status] || status || "—"}</Tag>}
-    >
-      <Space orientation="vertical" size={4} style={{ width: "100%" }}>
-        {adminItem ? (
-          <>
-            <Text
-              type="secondary"
-              style={{ cursor: "pointer" }}
-              onClick={() => {
-                void copyToClipboard(String(adminItem.id))
-                  .then(() => message.success("Скопировано"))
-                  .catch(() => message.error("Не удалось скопировать"));
-              }}
-            >
-              Идентификатор (ID): {adminItem.id}
-            </Text>
-            <Text type="secondary">Пользователь: {adminItem.username || `ID ${adminItem.user_id}`}</Text>
-            {adminItem.mark ? <Text type="secondary">Заметка: {adminItem.mark}</Text> : null}
-            {adminItem.sub_url ? (
-              <Link href={adminItem.sub_url} target="_blank">
-                Ссылка подписки
-              </Link>
-            ) : null}
-          </>
-        ) : null}
-        <Text type="secondary">Создан: {formatDate(item.created_at)}</Text>
-        <Text type="secondary">Обновлен: {formatDate(item.updated_at)}</Text>
-      </Space>
-    </Card>
-  );
-}
-
-const emptyPagination = (): Paginated<AdminInvoice> => ({
-  items: [],
-  total: 0,
-  page: 1,
-  limit: 3,
-  pages: 1,
-});
+import { cancelInvoice, checkInvoices, fetchInvoices } from "../api";
+import { AdminPageColumn, AdminPageLayout } from "../components/AdminPageLayout";
+import { AsyncListState } from "../components/AsyncListState";
+import { CompactFormAction } from "../components/LookupActionForm";
+import { InvoiceCard } from "../components/InvoiceCard";
+import { PaginationFooter } from "../components/PaginationFooter";
+import { SectionCard } from "../components/SectionCard";
+import { getApiErrorMessage } from "../utils/apiError";
+import { emptyPaginated } from "../utils/pagination";
+import type { AdminInvoice, Invoice, Paginated } from "../types";
 
 export function PaymentsPage() {
   const { message } = App.useApp();
   const [checkedInvoices, setCheckedInvoices] = useState<Invoice[] | null>(null);
   const [checkLoading, setCheckLoading] = useState(false);
 
-  const [allInvoices, setAllInvoices] = useState<Paginated<AdminInvoice>>(emptyPagination);
+  const [allInvoices, setAllInvoices] = useState<Paginated<AdminInvoice>>(() => emptyPaginated(3));
   const [allLoading, setAllLoading] = useState(false);
 
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -73,10 +29,9 @@ export function PaymentsPage() {
       setAllLoading(true);
 
       try {
-        const data = await fetchInvoices(page, allInvoices.limit);
-        setAllInvoices(data);
+        setAllInvoices(await fetchInvoices(page, allInvoices.limit));
       } catch (error) {
-        message.error(error instanceof Error ? error.message : "Не удалось загрузить счета к оплате");
+        message.error(getApiErrorMessage(error, "Не удалось загрузить счета к оплате"));
       } finally {
         setAllLoading(false);
       }
@@ -92,11 +47,10 @@ export function PaymentsPage() {
     setCheckLoading(true);
 
     try {
-      const items = await checkInvoices();
-      setCheckedInvoices(items);
+      setCheckedInvoices(await checkInvoices());
       await loadAllInvoices(allInvoices.page);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось проверить счета к оплате");
+      message.error(getApiErrorMessage(error, "Не удалось проверить счета к оплате"));
     } finally {
       setCheckLoading(false);
     }
@@ -111,99 +65,77 @@ export function PaymentsPage() {
       cancelForm.resetFields();
       await loadAllInvoices(allInvoices.page);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось отменить счет к оплате");
+      message.error(getApiErrorMessage(error, "Не удалось отменить счет к оплате"));
     } finally {
       setCancelLoading(false);
     }
   };
 
   return (
-    <>
-      <Title level={3} style={{ marginTop: 0 }}>
-        Платежи
-      </Title>
-
-      <Row gutter={[16, 16]} align="top">
-        <Col xs={24} xl={12}>
-          <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-            <Card
-              title="Оплаченные счета"
-              extra={[
-                <Button key="refresh" type="primary" onClick={onCheck} loading={checkLoading}>
-                  Проверить
-                </Button>,
-              ]}
-            >
-              <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-                {checkedInvoices === null ? (
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Проверка ещё не запускалась" />
-                ) : checkedInvoices.length === 0 ? (
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Новых оплаченных счетов нет" />
-                ) : (
-                  checkedInvoices.map((item) => <InvoiceRow key={item.id} item={item} />)
-                )}
-              </Space>
-            </Card>
-
-            <Card title="Отменить счет">
-              <Text type="secondary">Принудительно перевести счет в статус «Отменён».</Text>
-              <Form id="cancel-invoice-form" form={cancelForm} layout="vertical" onFinish={onCancel} style={{ marginTop: 16, marginBottom: 0 }}>
-                <Form.Item label="Идентификатор (ID)" style={{ marginBottom: 0 }}>
-                  <Space.Compact block>
-                    <Form.Item name="id" noStyle rules={[{ required: true, message: "Введите ID" }]}>
-                      <InputNumber placeholder="1" style={{ width: "100%" }} />
-                    </Form.Item>
-                    <Button danger htmlType="submit" loading={cancelLoading}>
-                      Отменить
-                    </Button>
-                  </Space.Compact>
-                </Form.Item>
-              </Form>
-            </Card>
-          </Space>
-        </Col>
-
-        <Col xs={24} xl={12}>
-          <Card
-            title="Все счета"
+    <AdminPageLayout title="Платежи">
+      <AdminPageColumn>
+        <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+          <SectionCard
+            title="Оплаченные счета"
             extra={
-              <Button key="refresh" icon={<ReloadOutlined />} onClick={() => void loadAllInvoices(1)} loading={allLoading}>
-                Обновить
+              <Button type="primary" onClick={() => void onCheck()} loading={checkLoading}>
+                Проверить
               </Button>
             }
           >
             <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-              {allLoading && !allInvoices.items.length ? (
-                <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
-                  <Spin indicator={<LoadingOutlined spin />} size="large" />
-                </div>
-              ) : null}
-
-              {!allLoading && !allInvoices.items.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Счетов нет" /> : null}
-
-              {allInvoices.items.map((item) => (
-                <InvoiceRow key={item.id} item={item} admin />
-              ))}
-
-              {allInvoices.total > 0 ? (
-                <Space wrap style={{ justifyContent: "space-between", width: "100%" }}>
-                  <Text type="secondary">
-                    Страница {allInvoices.page} из {allInvoices.pages} · всего {allInvoices.total}
-                  </Text>
-                  <Space>
-                    <Button disabled={allInvoices.page <= 1 || allLoading} onClick={() => void loadAllInvoices(allInvoices.page - 1)}>
-                      Назад
-                    </Button>
-                    <Button disabled={allInvoices.page >= allInvoices.pages || allLoading} onClick={() => void loadAllInvoices(allInvoices.page + 1)}>
-                      Вперёд
-                    </Button>
-                  </Space>
-                </Space>
-              ) : null}
+              {checkedInvoices === null ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Проверка ещё не запускалась" />
+              ) : checkedInvoices.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Новых оплаченных счетов нет" />
+              ) : (
+                checkedInvoices.map((item) => <InvoiceCard key={item.id} item={item} />)
+              )}
             </Space>
-          </Card>
-        </Col>
-      </Row>
-    </>
+          </SectionCard>
+
+          <SectionCard title="Отменить счет" hint="Принудительно перевести счет в статус «Отменён».">
+            <Form id="cancel-invoice-form" form={cancelForm} layout="vertical" onFinish={onCancel} style={{ marginBottom: 0 }}>
+              <CompactFormAction
+                label="Идентификатор (ID)"
+                name="id"
+                input={<InputNumber placeholder="1" style={{ width: "100%" }} />}
+                loading={cancelLoading}
+                submitLabel="Отменить"
+                danger
+                rules={[{ required: true, message: "Введите ID" }]}
+              />
+            </Form>
+          </SectionCard>
+        </Space>
+      </AdminPageColumn>
+
+      <AdminPageColumn>
+        <SectionCard
+          title="Все счета"
+          extra={
+            <Button icon={<ReloadOutlined />} onClick={() => void loadAllInvoices(1)} loading={allLoading}>
+              Обновить
+            </Button>
+          }
+        >
+          <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+            <AsyncListState loading={allLoading} empty={!allInvoices.items.length} emptyDescription="Счетов нет" minHeight={80}>
+              {allInvoices.items.map((item) => (
+                <InvoiceCard key={item.id} item={item} variant="admin" />
+              ))}
+            </AsyncListState>
+
+            <PaginationFooter
+              page={allInvoices.page}
+              pages={allInvoices.pages}
+              total={allInvoices.total}
+              loading={allLoading}
+              onPageChange={(page) => void loadAllInvoices(page)}
+            />
+          </Space>
+        </SectionCard>
+      </AdminPageColumn>
+    </AdminPageLayout>
   );
 }
