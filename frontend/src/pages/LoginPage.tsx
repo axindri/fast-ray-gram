@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Alert, Button, Card, Form, Input, Typography } from "antd";
 
 import { useAuth } from "../auth";
@@ -13,7 +13,8 @@ type LoginForm = {
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [error, setError] = useState("");
+  const location = useLocation();
+  const [error, setError] = useState(() => (location.state as { error?: string } | null)?.error ?? "");
   const [loading, setLoading] = useState(false);
 
   const onFinish = async (values: LoginForm) => {

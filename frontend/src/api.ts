@@ -11,7 +11,27 @@ import type {
   XuiClient,
 } from "./types";
 
-const TOKEN_KEY = "fast-ray-token";
+export const TOKEN_KEY = "fast-ray-token";
+
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
 
 function authHeaders(): HeadersInit {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -34,7 +54,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const detail = data?.detail;
     const message = typeof detail === "string" ? detail : response.statusText;
-    throw new Error(message);
+
+    if (response.status === 401) {
+      clearAuthToken();
+      unauthorizedHandler?.();
+    }
+
+    throw new ApiError(message, response.status);
   }
 
   return data as T;
