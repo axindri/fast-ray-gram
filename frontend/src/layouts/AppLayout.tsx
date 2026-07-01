@@ -1,20 +1,20 @@
 import { useMemo, useState } from "react";
 import { LogoutOutlined, MenuOutlined } from "@ant-design/icons";
-import { Button, Drawer, Flex, Layout, Menu, Space, Typography, theme } from "antd";
+import { Button, Drawer, Flex, Layout, Typography, theme } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { useAuth } from "../auth";
+import { AppSidebarMenu } from "../components/AppSidebarMenu";
 import { ServiceStatusBanner } from "../components/ServiceStatusBanner";
-import { ThemeToggle } from "../components/ThemeToggle";
+import { ThemeFooterControls } from "../components/ThemeFooterControls";
+import { useAuth } from "../auth";
 import { NAV_ITEMS } from "../config/navigation";
 import { ServiceStatusProvider } from "../hooks/useServiceStatus";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTheme } from "../theme/ThemeProvider";
 import { getSidebarBg } from "../theme/config";
-import { isAdminRole } from "../types";
 
 const { Header, Sider, Content, Footer } = Layout;
-const { Text, Title } = Typography;
+const { Title } = Typography;
 
 const HEADER_BG = "#000000";
 const HEADER_TEXT = "#ffffff";
@@ -22,7 +22,7 @@ const MOBILE_BREAKPOINT = "(max-width: 991.98px)";
 
 export function AppLayout() {
   const { token } = theme.useToken();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const { resolved } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,28 +32,12 @@ export function AppLayout() {
   const menuTheme = resolved === "dark" ? "dark" : "light";
   const sidebarBg = getSidebarBg(resolved);
 
-  const menuItems = useMemo(() => {
-    const showAdmin = user ? isAdminRole(user.role) : false;
-    return NAV_ITEMS.filter((item) => !item.adminOnly || showAdmin).map(({ path, Icon, label }) => ({
-      key: path,
-      icon: <Icon />,
-      label,
-    }));
-  }, [user]);
-
   const selectedKey = useMemo(() => {
     const match = NAV_ITEMS.find((item) => location.pathname.startsWith(item.path));
     return match ? [match.path] : [];
   }, [location.pathname]);
 
-  const onMenuClick = ({ key }: { key: string }) => {
-    navigate(key);
-    if (mobile) {
-      setMenuOpen(false);
-    }
-  };
-
-  const menu = <Menu className="app-menu" mode="inline" theme={menuTheme} selectedKeys={selectedKey} items={menuItems} onClick={onMenuClick} style={{ background: sidebarBg }} />;
+  const sidebar = <AppSidebarMenu menuTheme={menuTheme} resolved={resolved} selectedKey={selectedKey} onNavigate={mobile ? () => setMenuOpen(false) : undefined} />;
 
   const headerStyle = {
     display: "flex",
@@ -65,10 +49,9 @@ export function AppLayout() {
     borderBottom: `1px solid ${resolved === "dark" ? "#303030" : "#1f1f1f"}`,
   } as const;
 
-  const footerStyle = {
-    textAlign: "center" as const,
-    background: token.colorBgContainer,
-    borderTop: `1px solid ${token.colorBorderSecondary}`,
+  const onLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -86,14 +69,14 @@ export function AppLayout() {
 
         <ServiceStatusBanner />
 
-        <Layout style={{ background: token.colorBgLayout }}>
+        <Layout style={{ flex: 1, background: token.colorBgLayout }}>
           {mobile ? (
-            <Drawer title="Меню" placement="right" open={menuOpen} onClose={() => setMenuOpen(false)} width={240} styles={{ body: { padding: 0 } }}>
-              {menu}
+            <Drawer title="Меню" placement="right" open={menuOpen} onClose={() => setMenuOpen(false)} width={240} styles={{ body: { padding: 0, height: "100%" } }}>
+              {sidebar}
             </Drawer>
           ) : (
             <Sider className="app-sider" width={200} theme={menuTheme} style={{ background: sidebarBg, borderRight: `1px solid ${token.colorBorderSecondary}` }}>
-              {menu}
+              {sidebar}
             </Sider>
           )}
 
@@ -102,23 +85,19 @@ export function AppLayout() {
               <Outlet />
             </Content>
 
-            <Footer style={footerStyle}>
-              <Space wrap style={{ justifyContent: "center" }}>
-                <Text type="secondary" style={{ paddingRight: 8, paddingLeft: 8 }}>
-                  v2.0.0
-                </Text>
-                <ThemeToggle />
-                <Button
-                  type="text"
-                  icon={<LogoutOutlined />}
-                  onClick={() => {
-                    logout();
-                    navigate("/login");
-                  }}
-                >
+            <Footer
+              className="app-chrome-bar app-layout-footer"
+              style={{
+                background: token.colorBgContainer,
+                borderTop: `1px solid ${token.colorBorderSecondary}`,
+              }}
+            >
+              <Flex align="center" justify="space-between" style={{ width: "100%" }}>
+                <ThemeFooterControls />
+                <Button type="text" icon={<LogoutOutlined />} onClick={onLogout}>
                   Выйти
                 </Button>
-              </Space>
+              </Flex>
             </Footer>
           </Layout>
         </Layout>

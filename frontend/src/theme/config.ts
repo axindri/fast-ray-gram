@@ -4,7 +4,32 @@ export type ThemeMode = "light" | "dark" | "system";
 
 export type ResolvedTheme = "light" | "dark";
 
+export type AccentId = "default" | "pink" | "blue" | "neon" | "mint";
+
 export const THEME_STORAGE_KEY = "theme";
+export const ACCENT_STORAGE_KEY = "accent";
+
+export const ACCENT_PRESETS: { id: AccentId; label: string; color: string }[] = [
+  { id: "default", label: "Стандарт", color: "#1677ff" },
+  { id: "pink", label: "Розовый", color: "#ec4899" },
+  { id: "blue", label: "Синий", color: "#2563eb" },
+  { id: "neon", label: "Неон", color: "#b829f6" },
+  { id: "mint", label: "Бирюза", color: "#14b8a6" },
+];
+
+const accentColorById = Object.fromEntries(ACCENT_PRESETS.map((preset) => [preset.id, preset.color])) as Record<AccentId, string>;
+
+export function getAccentColor(id: AccentId): string {
+  return accentColorById[id];
+}
+
+export function readStoredAccentId(): AccentId {
+  const stored = localStorage.getItem(ACCENT_STORAGE_KEY);
+  if (stored && stored in accentColorById) {
+    return stored as AccentId;
+  }
+  return "default";
+}
 
 const sidebarTokens = {
   light: {
@@ -27,12 +52,15 @@ const sidebarTokens = {
   },
 } as const;
 
-export function getThemeConfig(resolved: ResolvedTheme): ThemeConfig {
+export function getThemeConfig(resolved: ResolvedTheme, colorPrimary: string): ThemeConfig {
   const isDark = resolved === "dark";
   const sidebar = isDark ? sidebarTokens.dark : sidebarTokens.light;
 
   return {
     algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+    token: {
+      colorPrimary,
+    },
     components: {
       Layout: {
         siderBg: sidebar.siderBg,

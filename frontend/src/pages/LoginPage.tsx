@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Alert, Button, Card, Form, Input, Typography } from "antd";
 
 import { useAuth } from "../auth";
-import { ThemeToggle } from "../components/ThemeToggle";
+import { ThemeFooterControls } from "../components/ThemeFooterControls";
 
 const { Title } = Typography;
 
@@ -61,7 +61,7 @@ export function LoginPage() {
       </Card>
 
       <div style={{ marginTop: "auto", display: "flex", justifyContent: "center", paddingTop: 24 }}>
-        <ThemeToggle />
+        <ThemeFooterControls />
       </div>
     </main>
   );

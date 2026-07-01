@@ -31,3 +31,22 @@ html[data-theme="dark"] {
   color: rgba(0, 0, 0, 0.88) !important;
 }
 
+.app-sider > .ant-layout-sider-children {
+  height: 100%;
+}
+
+.app-chrome-bar {
+  box-sizing: border-box;
+  min-height: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding-inline: 16px;
+  flex-shrink: 0;
+}
+
+.app-layout-footer.ant-layout-footer {
+  padding: 0 16px;
+  line-height: 1;
+}
+

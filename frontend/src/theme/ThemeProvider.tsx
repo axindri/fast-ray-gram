@@ -3,10 +3,15 @@ import { ConfigProvider } from "antd";
 import ruRU from "antd/locale/ru_RU";
 
 import {
+  ACCENT_PRESETS,
+  getAccentColor,
   getThemeConfig,
+  readStoredAccentId,
   readStoredThemeMode,
   resolveThemeMode,
+  ACCENT_STORAGE_KEY,
   THEME_STORAGE_KEY,
+  type AccentId,
   type ResolvedTheme,
   type ThemeMode,
 } from "./config";
@@ -14,7 +19,11 @@ import {
 type ThemeContextValue = {
   mode: ThemeMode;
   resolved: ResolvedTheme;
+  accentId: AccentId;
+  accentColor: string;
+  accentPresets: typeof ACCENT_PRESETS;
   setMode: (mode: ThemeMode) => void;
+  setAccentId: (id: AccentId) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -25,6 +34,7 @@ function readSystemPrefersDark() {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(() => readStoredThemeMode());
+  const [accentId, setAccentIdState] = useState<AccentId>(() => readStoredAccentId());
   const [systemPrefersDark, setSystemPrefersDark] = useState(() => readSystemPrefersDark());
 
   useEffect(() => {
@@ -37,6 +47,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resolved = useMemo(() => resolveThemeMode(mode, systemPrefersDark), [mode, systemPrefersDark]);
+  const accentColor = useMemo(() => getAccentColor(accentId), [accentId]);
+  const themeConfig = useMemo(() => getThemeConfig(resolved, accentColor), [resolved, accentColor]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolved;
@@ -48,11 +60,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setModeState(next);
   }, []);
 
-  const value = useMemo(() => ({ mode, resolved, setMode }), [mode, resolved, setMode]);
+  const setAccentId = useCallback((next: AccentId) => {
+    localStorage.setItem(ACCENT_STORAGE_KEY, next);
+    setAccentIdState(next);
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      mode,
+      resolved,
+      accentId,
+      accentColor,
+      accentPresets: ACCENT_PRESETS,
+      setMode,
+      setAccentId,
+    }),
+    [mode, resolved, accentId, accentColor, setMode, setAccentId],
+  );
 
   return (
     <ThemeContext.Provider value={value}>
-      <ConfigProvider locale={ruRU} theme={getThemeConfig(resolved)}>
+      <ConfigProvider locale={ruRU} theme={themeConfig}>
         {children}
       </ConfigProvider>
     </ThemeContext.Provider>

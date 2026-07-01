@@ -178,19 +178,3 @@ Admin-роуты обёрнуты в `RequireAdmin`.
 | Удаление user + XUI | backend `UserService.delete` |
 | Роли, guard admin | `auth.tsx`, `RequireAdmin`, `types.ts` |
 | Тема | `theme/ThemeProvider.tsx`, `theme/config.ts` |
-
----
-
-## Миграция: было → стало
-
-| Было inline в страницах | Стало |
-|------------------------|-------|
-| `XuiClientDetails` + `XuiSubscriptionCard` | `XuiClientCard` |
-| `UserRow`, `InvoiceRow`, `ProfileInvoiceCard` | `UserCard`, `InvoiceCard` |
-| `CopyField` + дубли toast | `CopyableInput` + `useCopyToClipboard` |
-| Дубли `formatTraffic` | `utils/format.ts` |
-| Дубли pagination UI | `PaginationFooter` + `AsyncListState` |
-| Дубли меню | `config/navigation.ts` |
-| 3 одинаковых Result-страницы | `ProfileResultPage` |
-| Повтор Card+hint+Form | `SectionCard` |
-| Повтор Title+Row | `AdminPageLayout` |
