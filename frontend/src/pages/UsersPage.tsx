@@ -100,7 +100,7 @@ export function UsersPage() {
   const [defaultExpiryDays, setDefaultExpiryDays] = useState(30);
 
   const [createLoading, setCreateLoading] = useState(false);
-  const [createdToken, setCreatedToken] = useState("");
+  const [createdAuthLink, setCreatedAuthLink] = useState("");
   const [createForm] = Form.useForm<CreateUserForm>();
 
   const [userLoading, setUserLoading] = useState(false);
@@ -135,7 +135,7 @@ export function UsersPage() {
 
   const onCreateUser = async (values: CreateUserForm) => {
     setCreateLoading(true);
-    setCreatedToken("");
+    setCreatedAuthLink("");
 
     try {
       const token = await createUser({
@@ -147,7 +147,7 @@ export function UsersPage() {
         expiry_time_days: values.expiry_time_days ?? defaultExpiryDays,
         enable: true,
       });
-      setCreatedToken(token);
+      setCreatedAuthLink(buildAuthLink(token));
       message.success("Пользователь создан");
     } catch (error) {
       message.error(error instanceof Error ? error.message : "Не удалось создать пользователя");
@@ -284,7 +284,7 @@ export function UsersPage() {
                 </Button>
               </Form>
 
-              {createdToken ? <CopyField label="Новый токен" value={createdToken} highlight /> : null}
+              {createdAuthLink ? <CopyField label="Ссылка для входа" value={createdAuthLink} /> : null}
             </Card>
 
             <Card title="Пользователь по ID">

@@ -31,6 +31,7 @@ class InvoiceResponse(BaseModel):
     invoice_id: int
     user_id: int
     payment_uuid: str
+    amount: int
     confirmation_url: str
     status: str
     created_at: datetime

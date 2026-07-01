@@ -56,6 +56,7 @@ export type Invoice = {
   id: number;
   invoice_id: number;
   user_id: number;
+  amount: number;
   payment_uuid: string;
   confirmation_url: string;
   status: string;

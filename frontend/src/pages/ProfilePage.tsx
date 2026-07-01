@@ -61,10 +61,10 @@ function ProfileInvoiceCard({ item, paymentBlocked }: { item: Invoice; paymentBl
   const canPay = isPending && item.confirmation_url && !paymentBlocked;
 
   return (
-    <Card size="small" title={`#${item.invoice_id}`} extra={<Tag color={invoiceStatusColor(status)}>{INVOICE_STATUS_LABELS[status] || status || "—"}</Tag>}>
+    <Card size="small" title={`#${item.invoice_id} · ${item.amount} ₽`} extra={<Tag color={invoiceStatusColor(status)}>{INVOICE_STATUS_LABELS[status] || status || "—"}</Tag>}>
       <Space orientation="vertical" size={8} style={{ width: "100%" }}>
-        <Text type="secondary">Идентификатор (ID): {item.id}</Text>
         <Text type="secondary">Создан: {formatDate(item.created_at)}</Text>
+        <Text type="secondary">Обновлен: {formatDate(item.updated_at)}</Text>
 
         {isPending && item.confirmation_url ? (
           <>

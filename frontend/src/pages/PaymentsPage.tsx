@@ -40,6 +40,7 @@ function InvoiceRow({ item, admin = false }: { item: Invoice | AdminInvoice; adm
           </>
         ) : null}
         <Text type="secondary">Создан: {formatDate(item.created_at)}</Text>
+        <Text type="secondary">Обновлен: {formatDate(item.updated_at)}</Text>
       </Space>
     </Card>
   );
