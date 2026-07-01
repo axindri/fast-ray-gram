@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DollarOutlined, LogoutOutlined, MenuOutlined, MonitorOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
-import { Button, Layout, Menu, Space, Typography } from "antd";
+import { Button, Drawer, Layout, Menu, Space, Typography } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth";
@@ -23,7 +23,21 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 991.98px)").matches);
-  const [collapsed, setCollapsed] = useState(() => window.matchMedia("(max-width: 991.98px)").matches);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 991.98px)");
+    const sync = () => {
+      setMobile(media.matches);
+      if (media.matches) {
+        setMenuOpen(false);
+      }
+    };
+
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   const menuItems = useMemo(() => {
     const showAdmin = user ? isAdminRole(user.role) : false;
@@ -39,72 +53,77 @@ export function AppLayout() {
     return match ? [match.key] : [];
   }, [location.pathname]);
 
+  const onMenuClick = ({ key }: { key: string }) => {
+    navigate(key);
+    if (mobile) {
+      setMenuOpen(false);
+    }
+  };
+
+  const menu = <Menu mode="inline" selectedKeys={selectedKey} items={menuItems} onClick={onMenuClick} />;
+
   return (
     <ServiceStatusProvider>
       <Layout style={{ minHeight: "100vh" }}>
-      <Header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingInline: 24,
-        }}
-      >
-        <Space>
-          {mobile ? <Button type="text" icon={<MenuOutlined />} aria-label="Меню" style={{ color: "#fff" }} onClick={() => setCollapsed((value) => !value)} /> : null}
-          <Title level={4} style={{ color: "#fff", margin: 0 }}>
-            Fast Ray Gram
-          </Title>
-        </Space>
-
-        <Space>
-          {user ? (
-            <Space size={4} style={{ color: "#fff" }}>
-              <Text style={{ color: "rgba(255,255,255,0.65)", textOverflow: "ellipsis" }}>{ROLE_LABELS[user.role]}</Text>
-            </Space>
-          ) : null}
-        </Space>
-      </Header>
-
-      <ServiceStatusBanner />
-
-      <Layout>
-        <Sider
-          breakpoint="lg"
-          collapsedWidth={0}
-          width={200}
-          theme="light"
-          collapsed={collapsed}
-          onCollapse={setCollapsed}
-          onBreakpoint={(broken) => {
-            setMobile(broken);
-            setCollapsed(broken);
+        <Header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingInline: 24,
           }}
-          trigger={null}
         >
-          <Menu mode="inline" selectedKeys={selectedKey} items={menuItems} onClick={({ key }) => navigate(key)} />
-        </Sider>
+          <Space>
+            {mobile ? <Button type="text" icon={<MenuOutlined />} aria-label="Меню" style={{ color: "#fff" }} onClick={() => setMenuOpen(true)} /> : null}
+            <Title level={4} style={{ color: "#fff", margin: 0 }}>
+              Fast Ray Gram
+            </Title>
+          </Space>
+
+          <Space>
+            {user && user.role !== "user" ? (
+              <Space size={4} style={{ color: "#fff" }}>
+                <Text style={{ color: "rgba(255,255,255,0.65)", textOverflow: "ellipsis" }}>{ROLE_LABELS[user.role]}</Text>
+              </Space>
+            ) : null}
+          </Space>
+        </Header>
+
+        <ServiceStatusBanner />
 
         <Layout>
-          <Content style={{ padding: "24px 16px", boxSizing: "border-box" }}>
-            <Outlet />
-          </Content>
+          {mobile ? (
+            <Drawer title="Меню" placement="left" open={menuOpen} onClose={() => setMenuOpen(false)} width={240} styles={{ body: { padding: 0 } }}>
+              {menu}
+            </Drawer>
+          ) : (
+            <Sider width={200} theme="light">
+              {menu}
+            </Sider>
+          )}
 
-          <Footer style={{ textAlign: "center" }}>
-            {" "}
-            <Button
-              type="text"
-              icon={<LogoutOutlined />}
-              onClick={() => {
-                logout();
-                navigate("/login");
-              }}
-            >
-              Выйти
-            </Button>
-          </Footer>
+          <Layout>
+            <Content style={{ padding: "24px 16px", boxSizing: "border-box" }}>
+              <Outlet />
+            </Content>
+
+            <Footer style={{ textAlign: "center" }}>
+              <Space>
+                <Text type="secondary">frontend v1.0.0</Text>
+                <Button
+                  type="text"
+                  icon={<LogoutOutlined />}
+                  onClick={() => {
+                    logout();
+                    navigate("/login");
+                  }}
+                >
+                  Выйти
+                </Button>
+              </Space>
+            </Footer>
+          </Layout>
         </Layout>
-      </Layout>
       </Layout>
     </ServiceStatusProvider>
   );
