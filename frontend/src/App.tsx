@@ -8,6 +8,8 @@ import { AppLayout } from "./layouts/AppLayout";
 import { ForbiddenPage } from "./pages/ForbiddenPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MonitoringPage } from "./pages/MonitoringPage";
+import { PaymentFailPage } from "./pages/PaymentFailPage";
+import { PaymentSuccessPage } from "./pages/PaymentSuccessPage";
 import { PaymentsPage } from "./pages/PaymentsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { UsersPage } from "./pages/UsersPage";
@@ -51,6 +53,8 @@ export default function App() {
 
       <Route element={<ProtectedLayout />}>
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/payment/success" element={<PaymentSuccessPage />} />
+        <Route path="/payment/fail" element={<PaymentFailPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
         <Route path="/" element={<Navigate to="/profile" replace />} />
 

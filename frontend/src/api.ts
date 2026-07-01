@@ -89,14 +89,15 @@ export async function fetchXuiMe(): Promise<XuiClient> {
 }
 
 export async function createInvoice(amount: number): Promise<Invoice> {
-  const returnUrl = window.location.href;
+  const returnUrl = new URL("/payment/success", window.location.origin).href;
+  const failUrl = new URL("/payment/fail", window.location.origin).href;
 
   return request<Invoice>(`${API_PREFIX}/tw/new-invoice`, {
     method: "POST",
     body: JSON.stringify({
       amount,
       return_url: returnUrl,
-      fail_url: returnUrl,
+      fail_url: failUrl,
     }),
   });
 }

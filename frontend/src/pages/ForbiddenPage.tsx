@@ -9,7 +9,7 @@ export function ForbiddenPage() {
       subTitle="У вас нет прав для просмотра этой страницы."
       extra={
         <Link to="/profile">
-          <Button type="primary">Выход</Button>
+          <Button type="primary">Перейти в профиль</Button>
         </Link>
       }
     />

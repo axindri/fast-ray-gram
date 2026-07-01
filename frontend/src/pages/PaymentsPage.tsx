@@ -76,7 +76,7 @@ export function PaymentsPage() {
         const data = await fetchInvoices(page, allInvoices.limit);
         setAllInvoices(data);
       } catch (error) {
-        message.error(error instanceof Error ? error.message : "Не удалось загрузить инвойсы");
+        message.error(error instanceof Error ? error.message : "Не удалось загрузить счета к оплате");
       } finally {
         setAllLoading(false);
       }
@@ -96,7 +96,7 @@ export function PaymentsPage() {
       setCheckedInvoices(items);
       await loadAllInvoices(allInvoices.page);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось проверить инвойсы");
+      message.error(error instanceof Error ? error.message : "Не удалось проверить счета к оплате");
     } finally {
       setCheckLoading(false);
     }
@@ -111,7 +111,7 @@ export function PaymentsPage() {
       cancelForm.resetFields();
       await loadAllInvoices(allInvoices.page);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Не удалось отменить инвойс");
+      message.error(error instanceof Error ? error.message : "Не удалось отменить счет к оплате");
     } finally {
       setCancelLoading(false);
     }
@@ -127,7 +127,7 @@ export function PaymentsPage() {
         <Col xs={24} xl={12}>
           <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
             <Card
-              title="Оплаченные инвойсы"
+              title="Оплаченные счета"
               extra={[
                 <Button key="refresh" type="primary" onClick={onCheck} loading={checkLoading}>
                   Проверить
@@ -138,15 +138,15 @@ export function PaymentsPage() {
                 {checkedInvoices === null ? (
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Проверка ещё не запускалась" />
                 ) : checkedInvoices.length === 0 ? (
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Новых оплаченных инвойсов нет" />
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Новых оплаченных счетов нет" />
                 ) : (
                   checkedInvoices.map((item) => <InvoiceRow key={item.id} item={item} />)
                 )}
               </Space>
             </Card>
 
-            <Card title="Отменить инвойс">
-              <Text type="secondary">Принудительно перевести инвойс в статус «Отменён».</Text>
+            <Card title="Отменить счет">
+              <Text type="secondary">Принудительно перевести счет в статус «Отменён».</Text>
               <Form id="cancel-invoice-form" form={cancelForm} layout="vertical" onFinish={onCancel} style={{ marginTop: 16, marginBottom: 0 }}>
                 <Form.Item label="Идентификатор (ID)" style={{ marginBottom: 0 }}>
                   <Space.Compact block>
@@ -165,7 +165,7 @@ export function PaymentsPage() {
 
         <Col xs={24} xl={12}>
           <Card
-            title="Все инвойсы"
+            title="Все счета"
             extra={
               <Button key="refresh" icon={<ReloadOutlined />} onClick={() => void loadAllInvoices(1)} loading={allLoading}>
                 Обновить

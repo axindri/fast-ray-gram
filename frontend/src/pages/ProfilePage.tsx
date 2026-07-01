@@ -1,4 +1,4 @@
-import { CopyOutlined, DollarOutlined, LoadingOutlined, MonitorOutlined, ReloadOutlined, TeamOutlined, UserOutlined, WifiOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, CopyOutlined, DollarOutlined, FileOutlined, LoadingOutlined, MonitorOutlined, ReloadOutlined, TeamOutlined, UserOutlined, WifiOutlined } from "@ant-design/icons";
 import { App, Button, Card, Empty, Flex, Form, Input, InputNumber, Space, Spin, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -15,7 +15,7 @@ const { Title, Text } = Typography;
 const APP_SECTIONS: { path: string; label: string; hint: string; icon: ReactNode; adminOnly?: boolean }[] = [
   { path: "/profile", label: "Профиль", hint: "Подписка и платежи", icon: <UserOutlined /> },
   { path: "/monitoring", label: "Мониторинг", hint: "Статус сервисов и ссылки на панели", icon: <MonitorOutlined />, adminOnly: true },
-  { path: "/payments", label: "Платежи", hint: "Проверка и управление инвойсами", icon: <DollarOutlined />, adminOnly: true },
+  { path: "/payments", label: "Платежи", hint: "Проверка и управление счетами к оплате", icon: <DollarOutlined />, adminOnly: true },
   { path: "/users", label: "Пользователи", hint: "Создание пользователей и XUI-клиентов", icon: <TeamOutlined />, adminOnly: true },
 ];
 
@@ -27,7 +27,14 @@ function AvailableSectionsCard({ role }: { role: UserRole }) {
   }
 
   return (
-    <Card title="Для тебя доступны разделы">
+    <Card
+      title={
+        <Flex align="center" gap={8}>
+          <ThemedIconAvatar shape="square" size="small" icon={<AppstoreOutlined />} />
+          <span>Для тебя доступны разделы</span>
+        </Flex>
+      }
+    >
       <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
         {sections.map(({ path, label, hint, icon }) => (
           <Link key={path} to={path} style={{ display: "block", color: "inherit" }}>
@@ -289,11 +296,11 @@ export function ProfilePage() {
             title={
               <Flex align="center" gap={8}>
                 <ThemedIconAvatar shape="square" size="small" icon={<DollarOutlined />} />
-                <span>Платежи</span>
+                <span>Новый счет</span>
               </Flex>
             }
           >
-            <Text type="secondary">Создайте новый инвойс для оплаты подписки</Text>
+            <Text type="secondary">Создайте новый счет для оплаты подписки</Text>
             <Form id="profile-payment-form" form={paymentForm} layout="inline" onFinish={onCreatePayment} style={{ marginTop: 16 }}>
               <Form.Item
                 label="Сумма, ₽"
@@ -308,7 +315,7 @@ export function ProfilePage() {
               <Form.Item>
                 <Space>
                   <Button type="primary" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
-                    Оплатить
+                    Создать и оплатить
                   </Button>
                   {statusLoading ? <Spin indicator={<LoadingOutlined spin />} /> : null}
                 </Space>
@@ -317,13 +324,19 @@ export function ProfilePage() {
           </Card>
 
           <Card
-            title="Мои инвойсы"
+            title={
+              <Flex align="center" gap={8}>
+                <ThemedIconAvatar shape="square" size="small" icon={<FileOutlined />} />
+                <span>Мои счета</span>
+              </Flex>
+            }
             extra={
               <Button icon={<ReloadOutlined />} loading={profileLoading} onClick={() => void loadProfile()}>
                 Обновить
               </Button>
             }
           >
+            <Text type="secondary">Здесь вы можете посмотреть свои оплаченные или отмененные счета, а так же оплатить новый счет</Text>
             <div style={{ marginTop: 16 }}>
               {profileLoading && !invoices.length ? (
                 <Flex justify="center" align="center" style={{ minHeight: 120 }}>

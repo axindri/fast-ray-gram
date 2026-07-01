@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "500m"
+    max-file: "1"
+
 services:
   app:
     build:
@@ -15,6 +21,7 @@ services:
     volumes:
       - ./database:/app/database
     restart: unless-stopped
+    logging: *default-logging
 
   invoice-worker:
     image: curlimages/curl:8.12.1
@@ -30,3 +37,4 @@ services:
     depends_on:
       - app
     restart: unless-stopped
+    logging: *default-logging
