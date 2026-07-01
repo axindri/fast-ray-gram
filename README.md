@@ -38,7 +38,7 @@ docker compose -f docker-compose.dev.yml up --build
 - http://localhost:8000 — приложение
 - http://localhost:8081 — SQLite Web
 
-**Продакшен**:
+**Продакшен** (бэкенд + собранный React-фронтенд в одном контейнере):
 
 ```bash
 cp .env.example .env
