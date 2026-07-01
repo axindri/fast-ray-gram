@@ -44,10 +44,12 @@ export function AppLayout() {
     alignItems: "center",
     justifyContent: "space-between",
     paddingInline: 24,
-    background: HEADER_BG,
-    color: HEADER_TEXT,
-    borderBottom: `1px solid ${resolved === "dark" ? "#303030" : "#1f1f1f"}`,
+    background: resolved === "dark" ? token.colorBgContainer : HEADER_BG,
+    color: resolved === "dark" ? token.colorText : HEADER_TEXT,
+    borderBottom: `1px solid ${resolved === "dark" ? token.colorBorderSecondary : "#1f1f1f"}`,
   } as const;
+
+  const headerTextColor = resolved === "dark" ? token.colorText : HEADER_TEXT;
 
   const onLogout = () => {
     logout();
@@ -60,11 +62,11 @@ export function AppLayout() {
         <Header style={headerStyle}>
           <Flex align="center" gap={12}>
             <img src="/frg_light_on_dark.png" alt="" aria-hidden style={{ height: mobile ? 28 : 36, display: "block" }} />
-            <Title level={4} style={{ margin: 0, color: HEADER_TEXT }}>
+            <Title level={4} style={{ margin: 0, color: headerTextColor }}>
               Fast Ray Gram
             </Title>
           </Flex>
-          {mobile ? <Button type="text" icon={<MenuOutlined />} aria-label="Меню" style={{ color: HEADER_TEXT }} onClick={() => setMenuOpen(true)} /> : null}
+          {mobile ? <Button type="text" icon={<MenuOutlined />} aria-label="Меню" style={{ color: headerTextColor }} onClick={() => setMenuOpen(true)} /> : null}
         </Header>
 
         <ServiceStatusBanner />
