@@ -259,17 +259,17 @@ export function UsersPage() {
                 </Form.Item>
 
                 <Row gutter={12}>
-                  <Col span={8}>
+                  <Col xs={24} md={8}>
                     <Form.Item label="Лимит IP" name="limit_ips">
                       <InputNumber style={{ width: "100%" }} placeholder="0" />
                     </Form.Item>
                   </Col>
-                  <Col span={8}>
+                  <Col xs={24} md={8}>
                     <Form.Item label="Объем трафика" name="total_gb">
                       <InputNumber style={{ width: "100%" }} placeholder="0" />
                     </Form.Item>
                   </Col>
-                  <Col span={8}>
+                  <Col xs={24} md={8}>
                     <Form.Item label="Срок действия" name="expiry_time_days">
                       <InputNumber style={{ width: "100%" }} placeholder={String(defaultExpiryDays)} />
                     </Form.Item>
@@ -345,12 +345,12 @@ export function UsersPage() {
               </Space>
 
               <Row gutter={12} style={{ marginTop: 16 }}>
-                <Col span={12}>
+                <Col xs={24} md={12}>
                   <Form.Item label="Срок действия, дней" name="expiry_time_days">
                     <InputNumber style={{ width: "100%" }} placeholder={String(defaultExpiryDays)} />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} md={12}>
                   <Form.Item label="Включен по-умолчанию" name="enable">
                     <Select
                       options={[

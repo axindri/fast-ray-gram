@@ -83,7 +83,7 @@ export function AppLayout() {
           <Space>
             {user && user.role !== "user" ? (
               <Space size={4} style={{ color: "#fff" }}>
-                <Text style={{ color: "rgba(255,255,255,0.65)", textOverflow: "ellipsis" }}>{ROLE_LABELS[user.role]}</Text>
+                <Text style={{ color: "rgba(255,255,255,0.65)" }}>{ROLE_LABELS[user.role]}</Text>
               </Space>
             ) : null}
           </Space>
@@ -109,7 +109,7 @@ export function AppLayout() {
 
             <Footer style={{ textAlign: "center" }}>
               <Space>
-                <Text type="secondary">frontend v1.0.0</Text>
+                <Text type="secondary">frontendv1.0.0</Text>
                 <Button
                   type="text"
                   icon={<LogoutOutlined />}
