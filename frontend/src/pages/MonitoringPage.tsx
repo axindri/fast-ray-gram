@@ -66,10 +66,7 @@ export function MonitoringPage() {
                   <Space key={name}>
                     <Badge status={statusColor(item.status)} />
                     <Text strong>{name}</Text>
-                    <Text type="secondary">
-                      {item.status}
-                      {item.version ? ` · v${item.version}` : ""}
-                    </Text>
+                    {item.status === "ok" ? <Text type="secondary">{item.version ? ` · v${item.version}` : ""}</Text> : null}
                   </Space>
                 ))}
               </Space>

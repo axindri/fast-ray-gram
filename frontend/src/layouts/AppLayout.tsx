@@ -101,7 +101,7 @@ export function AppLayout() {
 
             <Footer style={{ textAlign: "center" }}>
               <Space>
-                <Text type="secondary">v1.1.0</Text>
+                <Text type="secondary">v1.1.1</Text>
                 <Button
                   type="text"
                   icon={<LogoutOutlined />}
