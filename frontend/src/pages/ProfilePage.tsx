@@ -1,12 +1,12 @@
-import { CopyOutlined, DollarOutlined, LinkOutlined, LoadingOutlined, MonitorOutlined, ReloadOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
+import { CopyOutlined, DollarOutlined, LoadingOutlined, MonitorOutlined, ReloadOutlined, TeamOutlined, UserOutlined, WifiOutlined } from "@ant-design/icons";
 import { App, Avatar, Button, Card, Empty, Flex, Form, Input, InputNumber, Space, Spin, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { createInvoice, fetchConfig, formatDate } from "../api";
+import { createInvoice, fetchConfig, fetchXuiMe, formatDate } from "../api";
 import { useAuth } from "../auth";
 import { useServiceStatus } from "../hooks/useServiceStatus";
-import { INVOICE_STATUS_LABELS, ROLE_LABELS, invoiceStatusColor, isAdminRole, type Invoice, type UserRole } from "../types";
+import { INVOICE_STATUS_LABELS, ROLE_LABELS, invoiceStatusColor, isAdminRole, type Invoice, type UserRole, type XuiClient } from "../types";
 import { copyToClipboard } from "../utils/clipboard";
 
 const { Title, Text } = Typography;
@@ -55,6 +55,62 @@ function avatarLetter(username: string) {
   return displayName(username).charAt(0).toUpperCase();
 }
 
+function formatTraffic(usedBytes: number, totalGb: number): string {
+  const usedGb = (usedBytes / 1024 ** 3).toFixed(2);
+
+  if (!totalGb) {
+    return `${usedGb} GB / без лимита`;
+  }
+
+  return `${usedGb} / ${totalGb} GB`;
+}
+
+function XuiSubscriptionCard({ client }: { client: XuiClient }) {
+  const { message } = App.useApp();
+
+  return (
+    <Card
+      title={
+        <Flex align="center" gap={8}>
+          <Avatar shape="square" size="small" icon={<WifiOutlined />} style={{ backgroundColor: "#1677ff" }} />
+          <span>Подписка</span>
+        </Flex>
+      }
+      extra={
+        <Tag color={client.enable ? "green" : "red"} style={{ marginInlineStart: 4 }}>
+          {client.enable ? "Включена" : "Выключена"}
+        </Tag>
+      }
+    >
+      <Space orientation="vertical" size={12} style={{ width: "100%" }}>
+        <Text>
+          Трафик: <Text strong>{formatTraffic(client.used_traffic, client.total_gb)}</Text>
+        </Text>
+        <Text>Действует до: {formatDate(client.expiry_datetime)}</Text>
+
+        {client.sub_url ? (
+          <div style={{ marginTop: 12 }}>
+            <Text style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>Добавьте ссылку в VPN-клиент для подключения</Text>
+
+            <Space.Compact style={{ width: "100%", maxWidth: 640 }}>
+              <Input value={client.sub_url} readOnly />
+              <Button
+                icon={<CopyOutlined />}
+                aria-label="Скопировать"
+                onClick={() =>
+                  void copyToClipboard(client.sub_url)
+                    .then(() => message.success("Скопировано"))
+                    .catch(() => message.error("Не удалось скопировать"))
+                }
+              />
+            </Space.Compact>
+          </div>
+        ) : null}
+      </Space>
+    </Card>
+  );
+}
+
 function ProfileInvoiceCard({ item, paymentBlocked }: { item: Invoice; paymentBlocked: boolean }) {
   const status = String(item.status || "").toLowerCase();
   const isPending = status === "pending";
@@ -92,17 +148,43 @@ export function ProfilePage() {
   const { loading: statusLoading, paymentBlocked } = useServiceStatus();
   const [profileLoading, setProfileLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [xuiClient, setXuiClient] = useState<XuiClient | null>(null);
+  const [xuiLoading, setXuiLoading] = useState(false);
+
+  const loadXuiClient = async () => {
+    setXuiLoading(true);
+
+    try {
+      setXuiClient(await fetchXuiMe());
+    } catch {
+      setXuiClient(null);
+    } finally {
+      setXuiLoading(false);
+    }
+  };
 
   const loadProfile = async () => {
     setProfileLoading(true);
+
     try {
-      await refreshUser();
+      const profile = await refreshUser();
+      if (profile.role !== "superuser") {
+        await loadXuiClient();
+      } else {
+        setXuiClient(null);
+      }
     } catch {
       message.error("Не удалось обновить профиль");
     } finally {
       setProfileLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user && user.role !== "superuser") {
+      void loadXuiClient();
+    }
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,36 +251,18 @@ export function ProfilePage() {
         </Flex>
       </Card>
 
-      {user.sub_url && (
-        <Card
-          title={
-            <Flex align="center" gap={8}>
-              <Avatar shape="square" size="small" icon={<LinkOutlined />} style={{ backgroundColor: "#1677ff" }} />
-              <span>Ссылка подписки</span>
-            </Flex>
-          }
-        >
-          <Text type="secondary">Добавьте ссылку в VPN-клиент для подключения</Text>
-
-          <div style={{ marginTop: 16 }}>
-            <Space.Compact style={{ width: "100%", maxWidth: 640 }}>
-              <Input value={user.sub_url} readOnly />
-              <Button
-                icon={<CopyOutlined />}
-                aria-label="Скопировать"
-                onClick={() => {
-                  void copyToClipboard(user.sub_url)
-                    .then(() => message.success("Скопировано"))
-                    .catch(() => message.error("Не удалось скопировать"));
-                }}
-              />
-            </Space.Compact>
-          </div>
-        </Card>
-      )}
-
       {user.role !== "superuser" ? (
         <>
+          {xuiLoading && !xuiClient ? (
+            <Card>
+              <Flex justify="center" align="center" style={{ minHeight: 80 }}>
+                <Spin indicator={<LoadingOutlined spin />} />
+              </Flex>
+            </Card>
+          ) : null}
+
+          {xuiClient ? <XuiSubscriptionCard client={xuiClient} /> : null}
+
           <Card
             title={
               <Flex align="center" gap={8}>
@@ -206,9 +270,19 @@ export function ProfilePage() {
                 <span>Платежи</span>
               </Flex>
             }
+            actions={[
+              <Flex key="pay" align="center" gap={8} style={{ width: "50%", margin: "0 auto", padding: "0 16px", boxSizing: "border-box" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Button block color="green" variant="solid" form="profile-payment-form" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
+                    Оплатить
+                  </Button>
+                </div>
+                {statusLoading ? <Spin indicator={<LoadingOutlined spin />} size="medium" /> : null}
+              </Flex>,
+            ]}
           >
-            <Text type="secondary">Создайте новый счёт для оплаты подписки</Text>
-            <Form form={paymentForm} layout="inline" onFinish={onCreatePayment} style={{ marginTop: 16 }}>
+            <Text type="secondary">Создайте новый инвойс для оплаты подписки</Text>
+            <Form id="profile-payment-form" form={paymentForm} layout="inline" onFinish={onCreatePayment} style={{ marginTop: 16 }}>
               <Form.Item
                 label="Сумма, ₽"
                 name="amount"
@@ -218,14 +292,6 @@ export function ProfilePage() {
                 ]}
               >
                 <InputNumber min={minAmount} max={maxAmount} disabled={paymentsDisabled} />
-              </Form.Item>
-              <Form.Item>
-                <Space>
-                  <Button type="primary" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
-                    Создать платёж
-                  </Button>
-                  {statusLoading ? <Spin indicator={<LoadingOutlined spin />} size="medium" /> : null}
-                </Space>
               </Form.Item>
             </Form>
           </Card>

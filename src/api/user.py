@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.deps import get_current_user
 from src.core.enums import Role
 from src.models.users import UserProfileResponse
+from src.models.xui import ClientResponse
 from src.schemas.users import User
 from src.services.db import get_db
 from src.services.users import UserService, get_user_service
@@ -26,3 +27,12 @@ async def get_me(
             invoices=[],
         )
     return await user_service.get_user_profile_by_id(db, user.id)
+
+
+@router.get("/xui-me")
+async def get_xui_me(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+) -> ClientResponse:
+    return await user_service.get_xui_user_profile_by_id(db, user.id)

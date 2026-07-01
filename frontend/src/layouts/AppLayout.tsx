@@ -73,19 +73,17 @@ export function AppLayout() {
             paddingInline: 24,
           }}
         >
-          <Space>
-            {mobile ? <Button type="text" icon={<MenuOutlined />} aria-label="Меню" style={{ color: "#fff" }} onClick={() => setMenuOpen(true)} /> : null}
-            <Title level={4} style={{ color: "#fff", margin: 0 }}>
-              Fast Ray Gram
-            </Title>
-          </Space>
+          <Title level={4} style={{ color: "#fff", margin: 0 }}>
+            Fast Ray Gram
+          </Title>
+          {mobile ? <Button type="text" icon={<MenuOutlined />} aria-label="Меню" style={{ color: "#fff" }} onClick={() => setMenuOpen(true)} /> : null}
         </Header>
 
         <ServiceStatusBanner />
 
         <Layout>
           {mobile ? (
-            <Drawer title="Меню" placement="left" open={menuOpen} onClose={() => setMenuOpen(false)} width={240} styles={{ body: { padding: 0 } }}>
+            <Drawer title="Меню" placement="right" open={menuOpen} onClose={() => setMenuOpen(false)} width={240} styles={{ body: { padding: 0 } }}>
               {menu}
             </Drawer>
           ) : (

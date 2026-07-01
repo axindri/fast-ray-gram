@@ -84,6 +84,10 @@ export async function fetchMe(): Promise<UserProfile> {
   return request<UserProfile>(`${API_PREFIX}/user/me`);
 }
 
+export async function fetchXuiMe(): Promise<XuiClient> {
+  return request<XuiClient>(`${API_PREFIX}/user/xui-me`);
+}
+
 export async function createInvoice(amount: number): Promise<Invoice> {
   const returnUrl = window.location.href;
 

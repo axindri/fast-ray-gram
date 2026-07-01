@@ -10,7 +10,7 @@ from src.core.logger import get_logger
 from src.core.settings import settings
 from src.models.tw import InvoiceResponse
 from src.models.users import CreateUserRequest, UserProfileResponse
-from src.models.xui import CreateClientRequest
+from src.models.xui import ClientResponse, CreateClientRequest
 from src.schemas.invoices import Invoice
 from src.schemas.users import User
 from src.services.jwt import JwtService, get_jwt_service
@@ -111,6 +111,15 @@ class UserService:
         logger.debug(f"Refresh token for user {user.id} with: {jwt_data}")
         jwt_token = await self.jwt_service.encode(jwt_data)
         return jwt_token
+
+    async def get_xui_user_profile_by_id(self, db: AsyncSession, id: int) -> ClientResponse:
+        user = await self.get_by_id(db, id)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        xui_client = await self.xui_service.get_client_by_email(user.username)
+        if xui_client is None:
+            raise HTTPException(status_code=400, detail="User not found in XUI")
+        return ClientResponse.model_validate(xui_client)
 
 
 def get_user_service(
