@@ -1,15 +1,16 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from math import ceil
 
 from fastapi import Depends, HTTPException
-from sqlalchemy import case, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.enums import InvoiceStatus
 from src.core.logger import get_logger
 from src.core.settings import settings
 from src.models.tw import InvoiceResponse
-from src.models.users import CreateUserRequest, UserProfileResponse
+from src.models.users import AdminUserResponse, CreateUserRequest, UserProfileResponse
 from src.models.xui import ClientResponse, CreateClientRequest
 from src.schemas.invoices import Invoice
 from src.schemas.users import User
@@ -63,6 +64,18 @@ class UserService:
     async def get_by_id(self, db: AsyncSession, id: int) -> User | None:
         result = await db.execute(select(User).where(User.id == id))
         return result.scalar_one_or_none()
+
+    async def list_users(
+        self, db: AsyncSession, page: int = 1, limit: int = 20
+    ) -> tuple[list[AdminUserResponse], int, int]:
+        total_result = await db.execute(select(func.count()).select_from(User))
+        total = total_result.scalar_one()
+        pages = max(1, ceil(total / limit)) if total else 1
+        page = min(max(page, 1), pages)
+        offset = (page - 1) * limit
+        result = await db.execute(select(User).order_by(User.id.asc()).offset(offset).limit(limit))
+        items = [AdminUserResponse.model_validate(user) for user in result.scalars().all()]
+        return items, total, page
 
     async def get_user_profile_by_id(self, db: AsyncSession, id: int) -> UserProfileResponse:
         user = await self.get_by_id(db, id)

@@ -271,14 +271,12 @@ export function ProfilePage() {
               </Flex>
             }
             actions={[
-              <Flex key="pay" align="center" gap={8} style={{ width: "50%", margin: "0 auto", padding: "0 16px", boxSizing: "border-box" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Button block color="green" variant="solid" form="profile-payment-form" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
-                    Оплатить
-                  </Button>
-                </div>
+              <Space>
+                <Button block color="green" variant="solid" form="profile-payment-form" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
+                  Оплатить
+                </Button>
                 {statusLoading ? <Spin indicator={<LoadingOutlined spin />} size="medium" /> : null}
-              </Flex>,
+              </Space>,
             ]}
           >
             <Text type="secondary">Создайте новый инвойс для оплаты подписки</Text>

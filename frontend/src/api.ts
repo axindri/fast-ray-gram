@@ -113,6 +113,10 @@ export async function fetchInvoices(page = 1, limit = 3): Promise<Paginated<Admi
   return request<Paginated<AdminInvoice>>(`${API_PREFIX}/admin/invoices?page=${page}&limit=${limit}`);
 }
 
+export async function fetchUsers(page = 1, limit = 20): Promise<Paginated<AdminUser>> {
+  return request<Paginated<AdminUser>>(`${API_PREFIX}/admin/users?page=${page}&limit=${limit}`);
+}
+
 export async function checkInvoices(): Promise<Invoice[]> {
   return request<Invoice[]>(`${API_PREFIX}/admin/invoices/check`);
 }

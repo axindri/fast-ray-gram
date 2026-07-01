@@ -14,7 +14,11 @@ function InvoiceRow({ item, admin = false }: { item: Invoice | AdminInvoice; adm
   const status = String(item.status || "").toLowerCase();
 
   return (
-    <Card size="small" title={`#${item.invoice_id}`} extra={<Tag color={invoiceStatusColor(status)}>{INVOICE_STATUS_LABELS[status] || status || "—"}</Tag>}>
+    <Card
+      size="small"
+      title={`#${item.invoice_id} ${adminItem ? `· ${adminItem.amount} ₽` : ""}`}
+      extra={<Tag color={invoiceStatusColor(status)}>{INVOICE_STATUS_LABELS[status] || status || "—"}</Tag>}
+    >
       <Space orientation="vertical" size={4} style={{ width: "100%" }}>
         {adminItem ? (
           <>
@@ -36,7 +40,6 @@ function InvoiceRow({ item, admin = false }: { item: Invoice | AdminInvoice; adm
                 Ссылка подписки
               </Link>
             ) : null}
-            <Text type="secondary">Сумма: {adminItem.amount} ₽ ·</Text>
           </>
         ) : null}
         <Text type="secondary">Создан: {formatDate(item.created_at)}</Text>
@@ -145,7 +148,7 @@ export function PaymentsPage() {
             <Card title="Отменить инвойс">
               <Text type="secondary">Принудительно перевести инвойс в статус «Отменён».</Text>
               <Form id="cancel-invoice-form" form={cancelForm} layout="vertical" onFinish={onCancel} style={{ marginTop: 16, marginBottom: 0 }}>
-                <Form.Item label="ID записи" style={{ marginBottom: 0 }}>
+                <Form.Item label="Идентификатор (ID)" style={{ marginBottom: 0 }}>
                   <Space.Compact block>
                     <Form.Item name="id" noStyle rules={[{ required: true, message: "Введите ID" }]}>
                       <InputNumber placeholder="1" style={{ width: "100%" }} />

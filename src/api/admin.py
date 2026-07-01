@@ -26,6 +26,17 @@ async def admin_links() -> dict[str, str]:
     }
 
 
+@router.get("/users")
+async def list_users(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    user_service: UserService = Depends(get_user_service),
+) -> PaginatedResponse[AdminUserResponse]:
+    items, total, page = await user_service.list_users(db, page=page, limit=limit)
+    return build_paginated_response(items, total, page, limit)
+
+
 @router.post("/users/create")
 async def create_user(
     new_user: CreateUserRequest,
