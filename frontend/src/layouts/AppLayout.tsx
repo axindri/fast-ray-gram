@@ -6,7 +6,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { ServiceStatusBanner } from "../components/ServiceStatusBanner";
 import { ServiceStatusProvider } from "../hooks/useServiceStatus";
-import { isAdminRole, ROLE_LABELS } from "../types";
+import { isAdminRole } from "../types";
 
 const { Header, Sider, Content, Footer } = Layout;
 const { Title, Text } = Typography;
@@ -78,14 +78,6 @@ export function AppLayout() {
             <Title level={4} style={{ color: "#fff", margin: 0 }}>
               Fast Ray Gram
             </Title>
-          </Space>
-
-          <Space>
-            {user && user.role !== "user" ? (
-              <Space size={4} style={{ color: "#fff" }}>
-                <Text style={{ color: "rgba(255,255,255,0.65)" }}>{ROLE_LABELS[user.role]}</Text>
-              </Space>
-            ) : null}
           </Space>
         </Header>
 

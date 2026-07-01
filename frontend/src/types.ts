@@ -10,8 +10,8 @@ export type UserProfile = {
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   user: "Пользователь",
-  admin: "Админ",
-  superuser: "Суперюзер",
+  admin: "Администратор",
+  superuser: "Суперпользователь",
 };
 
 export function isAdminRole(role: UserRole): boolean {
