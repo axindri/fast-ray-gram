@@ -2,12 +2,16 @@ import { WifiOutlined } from "@ant-design/icons";
 import { Card, Flex, Space, Tag, Typography } from "antd";
 
 import { formatDate, formatExpiryRemaining } from "../api";
+import { HintTooltip } from "./HintTooltip";
 import { ThemedIconAvatar } from "./ThemedIconAvatar";
 import { CopyableInput } from "./CopyableInput";
 import { formatLimitIps, formatTraffic } from "../utils/format";
 import type { XuiClient } from "../types";
 
 const { Text } = Typography;
+
+const LIMIT_IP_HINT =
+  "Лимит IP — это не число устройств. С одного IP могут подключаться несколько устройств. Ограничение действует на количество разных IP-адресов одновременно.";
 
 type XuiClientCardProps = {
   client: XuiClient;
@@ -55,9 +59,12 @@ export function XuiClientCard({ client, variant = "admin" }: XuiClientCardProps)
           Трафик: <Text strong>{formatTraffic(client.used_traffic, client.total_gb)}</Text>
         </Text>
         {variant === "profile" ? (
-          <Text>
-            Лимит IP: <Text strong>{formatLimitIps(client.limit_ips)}</Text>
-          </Text>
+          <Flex align="center" gap={6} wrap>
+            <Text>
+              Лимит IP: <Text strong>{formatLimitIps(client.limit_ips)}</Text>
+            </Text>
+            <HintTooltip title={LIMIT_IP_HINT} />
+          </Flex>
         ) : null}
         <Text>
           Действует до: {formatDate(client.expiry_datetime)}

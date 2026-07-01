@@ -1,16 +1,18 @@
-import { AppstoreOutlined, DollarOutlined, FileOutlined, LoadingOutlined, ReloadOutlined, UserOutlined } from "@ant-design/icons";
-import { App, Button, Card, Flex, Form, InputNumber, Space, Spin, Tag, Typography } from "antd";
+import { AppstoreOutlined, CopyOutlined, DollarOutlined, FileOutlined, LoadingOutlined, ReloadOutlined, UserOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Card, Flex, Form, InputNumber, Space, Spin, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { createInvoice, fetchConfig, fetchXuiMe, canRenewSubscription } from "../api";
+import { TOKEN_KEY, buildAuthLink, createInvoice, fetchConfig, fetchXuiMe, canRenewSubscription } from "../api";
 import { AsyncListState } from "../components/AsyncListState";
+import { HintTooltip } from "../components/HintTooltip";
 import { InvoiceCard } from "../components/InvoiceCard";
 import { SectionCard } from "../components/SectionCard";
 import { ThemedIconAvatar } from "../components/ThemedIconAvatar";
 import { XuiClientCard } from "../components/XuiClientCard";
 import { filterNavItems } from "../config/navigation";
 import { useAuth } from "../auth";
+import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useServiceStatus } from "../hooks/useServiceStatus";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -18,6 +20,8 @@ import { avatarLetter, displayName } from "../utils/format";
 import { ROLE_LABELS, type UserRole } from "../types";
 
 const { Title, Text } = Typography;
+
+const RENEW_HINT = "Новый счёт можно выставить, когда до конца подписки останется меньше 24 часов (включая уже истёкшую).";
 
 function AvailableSectionsCard({ role }: { role: UserRole }) {
   const sections = useMemo(() => filterNavItems(role, { excludePaths: ["/profile"] }), [role]);
@@ -61,6 +65,7 @@ type PaymentForm = {
 export function ProfilePage() {
   const { message } = App.useApp();
   const { user, refreshUser } = useAuth();
+  const copy = useCopyToClipboard();
   const [paymentForm] = Form.useForm<PaymentForm>();
 
   const [minAmount, setMinAmount] = useState(100);
@@ -131,8 +136,13 @@ export function ProfilePage() {
 
   const name = displayName(user.username);
   const invoices = user.invoices ?? [];
+  const hasPendingInvoice = invoices.some((item) => String(item.status || "").toLowerCase() === "pending");
   const paymentsDisabled = statusLoading || paymentBlocked;
   const canRenew = xuiClient ? canRenewSubscription(xuiClient.expiry_datetime) : false;
+  const authLink = useMemo(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    return token ? buildAuthLink(token) : "";
+  }, [user.id]);
 
   const onCreatePayment = async (values: PaymentForm) => {
     if (paymentsDisabled || !canRenew) {
@@ -169,6 +179,14 @@ export function ProfilePage() {
               <Tag color="blue">{ROLE_LABELS[user.role]}</Tag>
               <Tag>ID {user.id}</Tag>
             </Space>
+            {authLink ? (
+              <Space orientation="vertical" size={4} style={{ marginTop: 12 }}>
+                <Text type="secondary">Ссылка для входа в аккаунт</Text>
+                <Button icon={<CopyOutlined />} onClick={() => copy(authLink)}>
+                  Скопировать
+                </Button>
+              </Space>
+            ) : null}
           </Flex>
         </Flex>
       </Card>
@@ -225,13 +243,26 @@ export function ProfilePage() {
                 <span>Мои счета</span>
               </Flex>
             }
-            hint="Здесь вы можете посмотреть свои оплаченные или отмененные счета, а так же оплатить новый счет"
+            hint={
+              <Text type="secondary">
+                Здесь вы можете посмотреть свои оплаченные или отмененные счета, а также оплатить новый счет <HintTooltip title={RENEW_HINT} />
+              </Text>
+            }
             extra={
               <Button icon={<ReloadOutlined />} loading={profileLoading} onClick={() => void loadProfile()}>
                 Обновить
               </Button>
             }
           >
+            {hasPendingInvoice ? (
+              <Alert
+                type="warning"
+                showIcon
+                title="Обработка платежа"
+                description="После оплаты статус счёта может оставаться «Ожидает оплаты» до минуты — платёж ещё обрабатывается. Нажмите «Обновить», если статус не изменился."
+                style={{ marginBottom: 16 }}
+              />
+            ) : null}
             <AsyncListState loading={profileLoading} empty={!invoices.length} emptyDescription="Счетов пока нет">
               {invoices.map((item) => (
                 <InvoiceCard key={item.id} item={item} variant="profile" paymentBlocked={paymentsDisabled} canRenew={canRenew} />

@@ -5,7 +5,7 @@ const { Text } = Typography;
 
 type SectionCardProps = {
   title: ReactNode;
-  hint?: string;
+  hint?: ReactNode;
   extra?: ReactNode;
   children: ReactNode;
 };
@@ -13,7 +13,7 @@ type SectionCardProps = {
 export function SectionCard({ title, hint, extra, children }: SectionCardProps) {
   return (
     <Card title={title} extra={extra}>
-      {hint ? <Text type="secondary">{hint}</Text> : null}
+      {hint ? (typeof hint === "string" ? <Text type="secondary">{hint}</Text> : hint) : null}
       <div style={hint ? { marginTop: 16 } : undefined}>{children}</div>
     </Card>
   );
