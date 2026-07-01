@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth";
 import { ServiceStatusBanner } from "../components/ServiceStatusBanner";
+import { ServiceStatusProvider } from "../hooks/useServiceStatus";
 import { isAdminRole, ROLE_LABELS } from "../types";
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -39,7 +40,8 @@ export function AppLayout() {
   }, [location.pathname]);
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <ServiceStatusProvider>
+      <Layout style={{ minHeight: "100vh" }}>
       <Header
         style={{
           display: "flex",
@@ -103,6 +105,7 @@ export function AppLayout() {
           </Footer>
         </Layout>
       </Layout>
-    </Layout>
+      </Layout>
+    </ServiceStatusProvider>
   );
 }

@@ -1,4 +1,5 @@
 import { Spin } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "./auth";
@@ -32,7 +33,7 @@ function ProtectedLayout() {
 function LoadingScreen() {
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
-      <Spin size="large" />
+      <Spin indicator={<LoadingOutlined spin />} size="large" />
     </div>
   );
 }

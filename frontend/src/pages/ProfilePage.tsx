@@ -3,9 +3,10 @@ import { App, Avatar, Button, Card, Empty, Flex, Form, Input, InputNumber, Space
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { createInvoice, fetchConfig, fetchStatus, formatDate } from "../api";
+import { createInvoice, fetchConfig, formatDate } from "../api";
 import { useAuth } from "../auth";
-import { INVOICE_STATUS_LABELS, ROLE_LABELS, getUnavailableServiceNames, invoiceStatusColor, isAdminRole, type Invoice, type UserRole } from "../types";
+import { useServiceStatus } from "../hooks/useServiceStatus";
+import { INVOICE_STATUS_LABELS, ROLE_LABELS, invoiceStatusColor, isAdminRole, type Invoice, type UserRole } from "../types";
 
 const { Title, Text } = Typography;
 
@@ -87,8 +88,7 @@ export function ProfilePage() {
 
   const [minAmount, setMinAmount] = useState(100);
   const [maxAmount, setMaxAmount] = useState(1000);
-  const [statusLoading, setStatusLoading] = useState(true);
-  const [paymentBlocked, setPaymentBlocked] = useState(true);
+  const { loading: statusLoading, paymentBlocked } = useServiceStatus();
   const [profileLoading, setProfileLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
@@ -106,29 +106,15 @@ export function ProfilePage() {
   useEffect(() => {
     let cancelled = false;
 
-    void (async () => {
-      setStatusLoading(true);
-
-      try {
-        const [config, status] = await Promise.all([fetchConfig(), fetchStatus()]);
-        if (cancelled) {
-          return;
-        }
-
-        setMinAmount(config.min_invoice_amount);
-        setMaxAmount(config.max_invoice_amount);
-        paymentForm.setFieldValue("amount", config.min_invoice_amount);
-        setPaymentBlocked(getUnavailableServiceNames(status).length > 0);
-      } catch {
-        if (!cancelled) {
-          setPaymentBlocked(true);
-        }
-      } finally {
-        if (!cancelled) {
-          setStatusLoading(false);
-        }
+    void fetchConfig().then((config) => {
+      if (cancelled) {
+        return;
       }
-    })();
+
+      setMinAmount(config.min_invoice_amount);
+      setMaxAmount(config.max_invoice_amount);
+      paymentForm.setFieldValue("amount", config.min_invoice_amount);
+    });
 
     return () => {
       cancelled = true;
