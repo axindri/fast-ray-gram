@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, App, Button, Card, Col, Empty, Form, InputNumber, Row, Space, Tag, Typography } from "antd";
+import { LoadingOutlined, ReloadOutlined } from "@ant-design/icons";
+import { App, Button, Card, Col, Empty, Form, InputNumber, Row, Space, Spin, Tag, Typography } from "antd";
 
 import { cancelInvoice, checkInvoices, fetchInvoices, formatDate } from "../api";
 import { INVOICE_STATUS_LABELS, invoiceStatusColor, type AdminInvoice, type Invoice, type Paginated } from "../types";
@@ -46,11 +47,9 @@ export function PaymentsPage() {
   const { message } = App.useApp();
   const [checkedInvoices, setCheckedInvoices] = useState<Invoice[] | null>(null);
   const [checkLoading, setCheckLoading] = useState(false);
-  const [checkError, setCheckError] = useState("");
 
   const [allInvoices, setAllInvoices] = useState<Paginated<AdminInvoice>>(emptyPagination);
   const [allLoading, setAllLoading] = useState(false);
-  const [allError, setAllError] = useState("");
 
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelForm] = Form.useForm<{ id: number }>();
@@ -58,18 +57,17 @@ export function PaymentsPage() {
   const loadAllInvoices = useCallback(
     async (page: number) => {
       setAllLoading(true);
-      setAllError("");
 
       try {
         const data = await fetchInvoices(page, allInvoices.limit);
         setAllInvoices(data);
       } catch (error) {
-        setAllError(error instanceof Error ? error.message : "Не удалось загрузить инвойсы");
+        message.error(error instanceof Error ? error.message : "Не удалось загрузить инвойсы");
       } finally {
         setAllLoading(false);
       }
     },
-    [allInvoices.limit],
+    [allInvoices.limit, message],
   );
 
   useEffect(() => {
@@ -78,14 +76,13 @@ export function PaymentsPage() {
 
   const onCheck = async () => {
     setCheckLoading(true);
-    setCheckError("");
 
     try {
       const items = await checkInvoices();
       setCheckedInvoices(items);
       await loadAllInvoices(allInvoices.page);
     } catch (error) {
-      setCheckError(error instanceof Error ? error.message : "Не удалось проверить инвойсы");
+      message.error(error instanceof Error ? error.message : "Не удалось проверить инвойсы");
     } finally {
       setCheckLoading(false);
     }
@@ -118,14 +115,12 @@ export function PaymentsPage() {
             <Card
               title="Оплаченные инвойсы"
               extra={[
-                <Button key="refresh" onClick={onCheck} loading={checkLoading}>
+                <Button key="refresh" type="primary" onClick={onCheck} loading={checkLoading}>
                   Проверить
                 </Button>,
               ]}
             >
               <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-                {checkError ? <Alert type="error" title={checkError} showIcon /> : null}
-
                 {checkedInvoices === null ? (
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Проверка ещё не запускалась" />
                 ) : checkedInvoices.length === 0 ? (
@@ -158,17 +153,19 @@ export function PaymentsPage() {
           <Card
             title="Все инвойсы"
             extra={
-              <Button key="refresh" onClick={() => void loadAllInvoices(1)} loading={allLoading}>
+              <Button key="refresh" icon={<ReloadOutlined />} onClick={() => void loadAllInvoices(1)} loading={allLoading}>
                 Обновить
               </Button>
             }
           >
             <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-              {allError ? <Alert type="error" title={allError} showIcon /> : null}
+              {allLoading && !allInvoices.items.length ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
+                  <Spin indicator={<LoadingOutlined spin />} size="large" />
+                </div>
+              ) : null}
 
-              {allLoading && !allInvoices.items.length ? <Text type="secondary">Загружаю...</Text> : null}
-
-              {!allLoading && !allError && !allInvoices.items.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Инвойсов нет" /> : null}
+              {!allLoading && !allInvoices.items.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Инвойсов нет" /> : null}
 
               {allInvoices.items.map((item) => (
                 <InvoiceRow key={item.id} item={item} admin />
