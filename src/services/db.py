@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from src.core.settings import settings
 
@@ -14,6 +15,7 @@ class Base(DeclarativeBase):
 engine = create_async_engine(
     settings.database.url,
     echo=False,
+    poolclass=NullPool,
 )
 
 SessionLocal = async_sessionmaker(
