@@ -348,7 +348,7 @@ export function ProfilePage() {
                 </Flex>
               ) : null}
 
-              {!profileLoading && !invoices.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Инвойсов пока нет" /> : null}
+              {!profileLoading && !invoices.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Счетов пока нет" /> : null}
 
               <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
                 {invoices.map((item) => (

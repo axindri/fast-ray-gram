@@ -107,7 +107,7 @@ export function PaymentsPage() {
 
     try {
       const invoice = await cancelInvoice(values.id);
-      message.success(`Инвойс #${invoice.invoice_id} отменён`);
+      message.success(`Счет #${invoice.invoice_id} отменён`);
       cancelForm.resetFields();
       await loadAllInvoices(allInvoices.page);
     } catch (error) {
@@ -179,7 +179,7 @@ export function PaymentsPage() {
                 </div>
               ) : null}
 
-              {!allLoading && !allInvoices.items.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Инвойсов нет" /> : null}
+              {!allLoading && !allInvoices.items.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Счетов нет" /> : null}
 
               {allInvoices.items.map((item) => (
                 <InvoiceRow key={item.id} item={item} admin />
