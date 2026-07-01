@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
     container_name: fast-ray-gram
     ports:
       - "${APP_PORT:-8000}:8000"
@@ -9,10 +11,11 @@ services:
     environment:
       APP__HOST: 0.0.0.0
       APP__PORT: 8000
-      APP__DEBUG: true
       DB__URL: sqlite+aiosqlite:////app/database/data.db
     volumes:
       - ./database:/app/database
+      - ./src:/app/src
+      - ./main.py:/app/main.py
     restart: unless-stopped
 
   sqlite-web:

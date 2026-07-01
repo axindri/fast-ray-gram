@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     container_name: fast-ray-gram
     ports:
       - "${APP_PORT:-8000}:8000"

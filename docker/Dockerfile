@@ -14,6 +14,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
+RUN mkdir -p /app/database
+
 EXPOSE 8000
 
-ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

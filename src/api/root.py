@@ -10,8 +10,6 @@ from src.services.xui import XuiService, get_xui_service
 
 router = APIRouter(prefix="/api", tags=["root"])
 
-_auth = [Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))]
-
 logger = get_logger()
 
 
@@ -51,7 +49,7 @@ async def read_status(
     }
 
 
-@router.get("/config", dependencies=_auth)
+@router.get("/config", dependencies=[Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))])
 async def app_config() -> dict[str, str | int]:
     return {
         "version": settings.app.version,
