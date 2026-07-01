@@ -446,13 +446,7 @@ export function UsersPage() {
                 ))}
               </AsyncListState>
 
-              <PaginationFooter
-                page={allUsers.page}
-                pages={allUsers.pages}
-                total={allUsers.total}
-                loading={allUsersLoading}
-                onPageChange={(page) => void loadAllUsers(page)}
-              />
+              <PaginationFooter page={allUsers.page} pages={allUsers.pages} total={allUsers.total} loading={allUsersLoading} onPageChange={(page) => void loadAllUsers(page)} />
             </Space>
           </SectionCard>
         </Space>

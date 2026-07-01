@@ -126,13 +126,7 @@ export function PaymentsPage() {
               ))}
             </AsyncListState>
 
-            <PaginationFooter
-              page={allInvoices.page}
-              pages={allInvoices.pages}
-              total={allInvoices.total}
-              loading={allLoading}
-              onPageChange={(page) => void loadAllInvoices(page)}
-            />
+            <PaginationFooter page={allInvoices.page} pages={allInvoices.pages} total={allInvoices.total} loading={allLoading} onPageChange={(page) => void loadAllInvoices(page)} />
           </Space>
         </SectionCard>
       </AdminPageColumn>
