@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CopyOutlined, ReloadOutlined, WifiOutlined } from "@ant-design/icons";
-import { App, Avatar, Button, Card, Col, Empty, Flex, Form, Input, InputNumber, Popconfirm, Row, Select, Space, Spin, Tag, Typography } from "antd";
+import { CopyOutlined, ReloadOutlined } from "@ant-design/icons";
+import { App, Button, Card, Col, Empty, Flex, Form, Input, InputNumber, Popconfirm, Row, Select, Space, Spin, Tag, Typography } from "antd";
 
 import {
   buildAuthLink,
@@ -137,7 +137,6 @@ function XuiClientDetails({ client }: { client: XuiClient }) {
     <Card
       title={
         <Flex align="center" gap={8}>
-          <Avatar shape="square" size="small" icon={<WifiOutlined />} style={{ backgroundColor: "#1677ff" }} />
           <span>{client.email}</span>
         </Flex>
       }

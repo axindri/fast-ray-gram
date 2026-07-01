@@ -11,7 +11,7 @@ import type {
   XuiClient,
 } from "./types";
 
-export const TOKEN_KEY = "fast-ray-token";
+export const TOKEN_KEY = "authToken";
 
 const API_PREFIX = "/api";
 

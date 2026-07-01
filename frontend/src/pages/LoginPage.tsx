@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Alert, Button, Card, Form, Input, Typography } from "antd";
 
 import { useAuth } from "../auth";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 const { Title } = Typography;
 
@@ -33,6 +34,10 @@ export function LoginPage() {
 
   return (
     <main style={{ padding: "64px 16px 24px", boxSizing: "border-box" }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+        <ThemeToggle />
+      </div>
+
       <Title level={3} style={{ textAlign: "center" }}>
         Fast Ray Gram
       </Title>

@@ -1,10 +1,11 @@
 import { CopyOutlined, DollarOutlined, LoadingOutlined, MonitorOutlined, ReloadOutlined, TeamOutlined, UserOutlined, WifiOutlined } from "@ant-design/icons";
-import { App, Avatar, Button, Card, Empty, Flex, Form, Input, InputNumber, Space, Spin, Tag, Typography } from "antd";
+import { App, Button, Card, Empty, Flex, Form, Input, InputNumber, Space, Spin, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { createInvoice, fetchConfig, fetchXuiMe, formatDate } from "../api";
 import { useAuth } from "../auth";
+import { ThemedIconAvatar } from "../components/ThemedIconAvatar";
 import { useServiceStatus } from "../hooks/useServiceStatus";
 import { INVOICE_STATUS_LABELS, ROLE_LABELS, invoiceStatusColor, isAdminRole, type Invoice, type UserRole, type XuiClient } from "../types";
 import { copyToClipboard } from "../utils/clipboard";
@@ -32,7 +33,7 @@ function AvailableSectionsCard({ role }: { role: UserRole }) {
           <Link key={path} to={path} style={{ display: "block", color: "inherit" }}>
             <Card size="small" styles={{ body: { padding: 12 } }}>
               <Flex align="center" gap={12}>
-                <Avatar shape="square" size="small" icon={icon} style={{ backgroundColor: "#1677ff" }} />
+                <ThemedIconAvatar shape="square" size="small" icon={icon} />
                 <Flex vertical gap={0}>
                   <Text strong>{label}</Text>
                   <Text type="secondary">{hint}</Text>
@@ -72,7 +73,7 @@ function XuiSubscriptionCard({ client }: { client: XuiClient }) {
     <Card
       title={
         <Flex align="center" gap={8}>
-          <Avatar shape="square" size="small" icon={<WifiOutlined />} style={{ backgroundColor: "#1677ff" }} />
+          <ThemedIconAvatar shape="square" size="small" icon={<WifiOutlined />} />
           <span>Подписка</span>
         </Flex>
       }
@@ -150,6 +151,16 @@ export function ProfilePage() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [xuiClient, setXuiClient] = useState<XuiClient | null>(null);
   const [xuiLoading, setXuiLoading] = useState(false);
+  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 991.98px)").matches);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 991.98px)");
+    const sync = () => setMobile(media.matches);
+
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   const loadXuiClient = async () => {
     setXuiLoading(true);
@@ -235,9 +246,9 @@ export function ProfilePage() {
     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
       <Card>
         <Flex align="center" gap="large" wrap="wrap">
-          <Avatar size={72} icon={<UserOutlined />} style={{ backgroundColor: "#1677ff", flexShrink: 0 }}>
+          <ThemedIconAvatar size={mobile ? 48 : 72} icon={<UserOutlined />} style={{ flexShrink: 0 }}>
             {avatarLetter(user.username)}
-          </Avatar>
+          </ThemedIconAvatar>
 
           <Flex vertical gap={4}>
             <Title level={3} style={{ margin: 0 }}>
@@ -266,7 +277,7 @@ export function ProfilePage() {
           <Card
             title={
               <Flex align="center" gap={8}>
-                <Avatar shape="square" size="small" icon={<DollarOutlined />} style={{ backgroundColor: "#1677ff" }} />
+                <ThemedIconAvatar shape="square" size="small" icon={<DollarOutlined />} />
                 <span>Платежи</span>
               </Flex>
             }
