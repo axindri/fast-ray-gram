@@ -8,7 +8,11 @@ from src.core.settings import settings
 from src.services.tw import TimeWebService, get_timeweb_service
 from src.services.xui import XuiService, get_xui_service
 
-router = APIRouter(prefix="/api", tags=["root"])
+router = APIRouter(
+    prefix="/api",
+    tags=["root"],
+    dependencies=[Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))],
+)
 
 logger = get_logger()
 
@@ -49,7 +53,7 @@ async def read_status(
     }
 
 
-@router.get("/config", dependencies=[Depends(require_roles(Role.USER, Role.ADMIN, Role.SUPERUSER))])
+@router.get("/config")
 async def app_config() -> dict[str, str | int]:
     return {
         "version": settings.app.version,
