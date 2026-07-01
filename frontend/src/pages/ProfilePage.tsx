@@ -66,6 +66,14 @@ function formatTraffic(usedBytes: number, totalGb: number): string {
   return `${usedGb} / ${totalGb} GB`;
 }
 
+function formatLimitIps(limitIps: number): string {
+  if (!limitIps) {
+    return "без лимита";
+  }
+
+  return String(limitIps);
+}
+
 function XuiSubscriptionCard({ client }: { client: XuiClient }) {
   const { message } = App.useApp();
 
@@ -86,6 +94,9 @@ function XuiSubscriptionCard({ client }: { client: XuiClient }) {
       <Space orientation="vertical" size={12} style={{ width: "100%" }}>
         <Text>
           Трафик: <Text strong>{formatTraffic(client.used_traffic, client.total_gb)}</Text>
+        </Text>
+        <Text>
+          Лимит IP: <Text strong>{formatLimitIps(client.limit_ips)}</Text>
         </Text>
         <Text>Действует до: {formatDate(client.expiry_datetime)}</Text>
 
@@ -281,14 +292,6 @@ export function ProfilePage() {
                 <span>Платежи</span>
               </Flex>
             }
-            actions={[
-              <Space>
-                <Button block color="green" variant="solid" form="profile-payment-form" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
-                  Оплатить
-                </Button>
-                {statusLoading ? <Spin indicator={<LoadingOutlined spin />} size="medium" /> : null}
-              </Space>,
-            ]}
           >
             <Text type="secondary">Создайте новый инвойс для оплаты подписки</Text>
             <Form id="profile-payment-form" form={paymentForm} layout="inline" onFinish={onCreatePayment} style={{ marginTop: 16 }}>
@@ -301,6 +304,14 @@ export function ProfilePage() {
                 ]}
               >
                 <InputNumber min={minAmount} max={maxAmount} disabled={paymentsDisabled} />
+              </Form.Item>
+              <Form.Item>
+                <Space>
+                  <Button type="primary" htmlType="submit" loading={paymentLoading} disabled={paymentsDisabled}>
+                    Оплатить
+                  </Button>
+                  {statusLoading ? <Spin indicator={<LoadingOutlined spin />} /> : null}
+                </Space>
               </Form.Item>
             </Form>
           </Card>

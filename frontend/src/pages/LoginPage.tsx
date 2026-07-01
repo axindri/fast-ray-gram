@@ -33,11 +33,15 @@ export function LoginPage() {
   };
 
   return (
-    <main style={{ padding: "64px 16px 24px", boxSizing: "border-box" }}>
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-        <ThemeToggle />
-      </div>
-
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        padding: "64px 16px 24px",
+        boxSizing: "border-box",
+      }}
+    >
       <Title level={3} style={{ textAlign: "center" }}>
         Fast Ray Gram
       </Title>
@@ -55,6 +59,10 @@ export function LoginPage() {
           </Button>
         </Form>
       </Card>
+
+      <div style={{ marginTop: "auto", display: "flex", justifyContent: "center", paddingTop: 24 }}>
+        <ThemeToggle />
+      </div>
     </main>
   );
 }
