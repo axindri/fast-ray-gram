@@ -35,6 +35,15 @@ class AdminUserResponse(BaseModel):
         from_attributes = True
 
 
+class UpdateUserRoleRequest(BaseModel):
+    role: Role
+
+
+class UpdateUserRoleResponse(BaseModel):
+    user: AdminUserResponse
+    token: str
+
+
 class UserResponse(BaseModel):
     id: int
     username: str

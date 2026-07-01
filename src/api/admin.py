@@ -6,7 +6,7 @@ from src.core.enums import Role
 from src.core.settings import settings
 from src.models.common import PaginatedResponse, build_paginated_response
 from src.models.tw import AdminInvoiceResponse, InvoiceResponse
-from src.models.users import AdminUserResponse, CreateUserRequest
+from src.models.users import AdminUserResponse, CreateUserRequest, UpdateUserRoleRequest, UpdateUserRoleResponse
 from src.models.xui import UpdateClientRequest
 from src.schemas.users import User
 from src.services.db import get_db
@@ -58,6 +58,17 @@ async def refresh_token(
     user_service: UserService = Depends(get_user_service),
 ) -> str:
     return await user_service.refresh_token(db, id)
+
+
+@router.post("/users/{id}/role")
+async def update_user_role(
+    id: int,
+    payload: UpdateUserRoleRequest,
+    db: AsyncSession = Depends(get_db),
+    user_service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
+) -> UpdateUserRoleResponse:
+    return await user_service.update_role(db, id, payload.role, current_user.role)
 
 
 @router.get("/users/get/{id}")

@@ -12,8 +12,10 @@ import {
   fetchUsers,
   fetchXuiClient,
   formatDate,
+  formatExpiryRemaining,
   refreshUserToken,
   resetXuiClientTraffic,
+  updateUserRole,
   updateXuiClient,
 } from "../api";
 import { useAuth } from "../auth";
@@ -34,7 +36,10 @@ type CreateUserForm = {
 
 type UserGetForm = { id: number };
 
-type UserRefreshForm = { id: number };
+type UserActionsForm = {
+  id: number;
+  role: UserRole;
+};
 
 type XuiGetForm = { email: string };
 
@@ -132,6 +137,7 @@ function formatTraffic(usedBytes: number, totalGb: number): string {
 
 function XuiClientDetails({ client }: { client: XuiClient }) {
   const { message } = App.useApp();
+  const expiryRemaining = formatExpiryRemaining(client.expiry_datetime);
 
   return (
     <Card
@@ -150,7 +156,10 @@ function XuiClientDetails({ client }: { client: XuiClient }) {
         <Text>
           Трафик: <Text strong>{formatTraffic(client.used_traffic, client.total_gb)}</Text>
         </Text>
-        <Text>Действует до: {formatDate(client.expiry_datetime)}</Text>
+        <Text>
+          Действует до: {formatDate(client.expiry_datetime)}
+          {expiryRemaining ? ` · ${expiryRemaining}` : null}
+        </Text>
 
         {client.sub_url ? (
           <div style={{ marginTop: 12 }}>
@@ -185,12 +194,14 @@ export function UsersPage() {
   const [createForm] = Form.useForm<CreateUserForm>();
 
   const [userGetLoading, setUserGetLoading] = useState(false);
-  const [userRefreshLoading, setUserRefreshLoading] = useState(false);
   const [managedUser, setManagedUser] = useState<AdminUser | null>(null);
   const [userLookup, setUserLookup] = useState<UserLookupState>("idle");
-  const [authLink, setAuthLink] = useState("");
   const [userGetForm] = Form.useForm<UserGetForm>();
-  const [userRefreshForm] = Form.useForm<UserRefreshForm>();
+  const [userActionsLoading, setUserActionsLoading] = useState(false);
+  const [updatedRoleUser, setUpdatedRoleUser] = useState<AdminUser | null>(null);
+  const [roleAuthLink, setRoleAuthLink] = useState("");
+  const [authLink, setAuthLink] = useState("");
+  const [userActionsForm] = Form.useForm<UserActionsForm>();
 
   const [xuiGetLoading, setXuiGetLoading] = useState(false);
   const [xuiUpdateLoading, setXuiUpdateLoading] = useState(false);
@@ -299,8 +310,8 @@ export function UsersPage() {
   };
 
   const runUserRefreshAction = async () => {
-    const { id } = await userRefreshForm.validateFields();
-    setUserRefreshLoading(true);
+    const { id } = await userActionsForm.validateFields(["id"]);
+    setUserActionsLoading(true);
     setAuthLink("");
 
     try {
@@ -310,7 +321,31 @@ export function UsersPage() {
     } catch (error) {
       message.error(error instanceof Error ? error.message : "Не удалось выполнить действие");
     } finally {
-      setUserRefreshLoading(false);
+      setUserActionsLoading(false);
+    }
+  };
+
+  const onUpdateUserRole = async () => {
+    const values = await userActionsForm.validateFields();
+
+    if (values.role === "superuser") {
+      return;
+    }
+
+    setUserActionsLoading(true);
+    setUpdatedRoleUser(null);
+    setRoleAuthLink("");
+
+    try {
+      const result = await updateUserRole(values.id, values.role);
+      setUpdatedRoleUser(result.user);
+      setRoleAuthLink(buildAuthLink(result.token));
+      message.success("Роль обновлена");
+      await loadAllUsers(allUsers.page);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "Не удалось обновить роль");
+    } finally {
+      setUserActionsLoading(false);
     }
   };
 
@@ -422,39 +457,60 @@ export function UsersPage() {
             <Card title="Получить пользователя">
               <Text type="secondary">Просмотр данных пользователя и удаление</Text>
               <Form form={userGetForm} layout="vertical" style={{ marginTop: 16 }}>
-                <Form.Item label="User ID" name="id" rules={[{ required: true, message: "Введите ID" }]}>
-                  <InputNumber style={{ width: "100%" }} placeholder="1" />
-                </Form.Item>
-
-                <Space wrap>
-                  <Button loading={userGetLoading} onClick={() => void runUserGetAction("get")}>
-                    Получить
-                  </Button>
-                  <Popconfirm title="Удалить пользователя?" okText="Да" cancelText="Нет" okButtonProps={{ danger: true }} onConfirm={() => void runUserGetAction("delete")}>
-                    <Button danger loading={userGetLoading}>
-                      Удалить
+                <Form.Item label="User ID" style={{ marginBottom: 0 }}>
+                  <Space.Compact block>
+                    <Form.Item name="id" noStyle rules={[{ required: true, message: "Введите ID" }]}>
+                      <InputNumber placeholder="1" style={{ width: "100%" }} />
+                    </Form.Item>
+                    <Button loading={userGetLoading} onClick={() => void runUserGetAction("get")}>
+                      Получить
                     </Button>
-                  </Popconfirm>
-                </Space>
+                    <Popconfirm title="Удалить пользователя?" okText="Да" cancelText="Нет" okButtonProps={{ danger: true }} onConfirm={() => void runUserGetAction("delete")}>
+                      <Button danger loading={userGetLoading}>
+                        Удалить
+                      </Button>
+                    </Popconfirm>
+                  </Space.Compact>
+                </Form.Item>
 
                 <UserLookupPanel loading={userGetLoading} lookup={userLookup} user={managedUser} />
               </Form>
             </Card>
 
-            <Card title="Новая ссылка для входа">
-              <Text type="secondary">Генерация новой ссылки для входа пользователя</Text>
-              <Form form={userRefreshForm} layout="vertical" style={{ marginTop: 16 }}>
+            <Card title="Действия с пользователем">
+              <Text type="secondary">Новая ссылка для входа и смена роли по ID</Text>
+              <Form form={userActionsForm} layout="vertical" initialValues={{ role: "user" }} style={{ marginTop: 16 }}>
                 <Form.Item label="User ID" name="id" rules={[{ required: true, message: "Введите ID" }]}>
                   <InputNumber style={{ width: "100%" }} placeholder="1" />
                 </Form.Item>
 
-                <Button type="primary" loading={userRefreshLoading} onClick={() => void runUserRefreshAction()}>
-                  Получить
+                <Button type="primary" loading={userActionsLoading} onClick={() => void runUserRefreshAction()} style={{ marginBottom: authLink ? 0 : 16 }}>
+                  Новая ссылка для входа
                 </Button>
 
                 {authLink ? (
-                  <div style={{ marginTop: 16 }}>
+                  <div style={{ marginTop: 16, marginBottom: 16 }}>
                     <CopyField label="Ссылка для входа" value={authLink} />
+                  </div>
+                ) : null}
+
+                <Form.Item label="Роль" name="role" rules={[{ required: true }]}>
+                  <Select options={roleOptions} />
+                </Form.Item>
+
+                <Button type="primary" loading={userActionsLoading} onClick={() => void onUpdateUserRole()}>
+                  Сохранить роль
+                </Button>
+
+                {updatedRoleUser ? (
+                  <div style={{ marginTop: 16 }}>
+                    <UserRow user={updatedRoleUser} />
+                  </div>
+                ) : null}
+
+                {roleAuthLink ? (
+                  <div style={{ marginTop: 16 }}>
+                    <CopyField label="Ссылка для входа" value={roleAuthLink} />
                   </div>
                 ) : null}
               </Form>
@@ -467,20 +523,21 @@ export function UsersPage() {
             <Card title="Просмотр XUI клиента">
               <Text type="secondary">Просмотр данных клиента и удаление</Text>
               <Form form={xuiGetForm} layout="vertical" style={{ marginTop: 16 }}>
-                <Form.Item label="Username" name="email" rules={[{ required: true, message: "Введите имя пользователя" }]}>
-                  <Input placeholder="Alex" />
-                </Form.Item>
-
-                <Space wrap>
-                  <Button loading={xuiGetLoading} onClick={() => void runXuiGetAction("get")}>
-                    Получить
-                  </Button>
-                  <Popconfirm title="Удалить XUI-клиента?" okText="Да" cancelText="Нет" okButtonProps={{ danger: true }} onConfirm={() => void runXuiGetAction("delete")}>
-                    <Button danger loading={xuiGetLoading}>
-                      Удалить
+                <Form.Item label="Username" style={{ marginBottom: 0 }}>
+                  <Space.Compact block>
+                    <Form.Item name="email" noStyle rules={[{ required: true, message: "Введите имя пользователя" }]}>
+                      <Input placeholder="Alex" style={{ width: "100%" }} />
+                    </Form.Item>
+                    <Button loading={xuiGetLoading} onClick={() => void runXuiGetAction("get")}>
+                      Получить
                     </Button>
-                  </Popconfirm>
-                </Space>
+                    <Popconfirm title="Удалить XUI-клиента?" okText="Да" cancelText="Нет" okButtonProps={{ danger: true }} onConfirm={() => void runXuiGetAction("delete")}>
+                      <Button danger loading={xuiGetLoading}>
+                        Удалить
+                      </Button>
+                    </Popconfirm>
+                  </Space.Compact>
+                </Form.Item>
 
                 {xuiClient ? (
                   <div style={{ marginTop: 16 }}>
@@ -490,7 +547,7 @@ export function UsersPage() {
               </Form>
             </Card>
 
-            <Card title="Обновить XUI клиента">
+            <Card title="Действия с XUI клиентом">
               <Text type="secondary">Срок действия, статус и сброс трафика</Text>
               <Form form={xuiUpdateForm} layout="vertical" initialValues={{ enable: true }} style={{ marginTop: 16 }}>
                 <Form.Item label="Username" name="email" rules={[{ required: true, message: "Введите имя пользователя" }]}>

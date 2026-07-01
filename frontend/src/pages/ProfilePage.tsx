@@ -3,7 +3,7 @@ import { App, Button, Card, Empty, Flex, Form, Input, InputNumber, Space, Spin, 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { createInvoice, fetchConfig, fetchXuiMe, formatDate } from "../api";
+import { createInvoice, fetchConfig, fetchXuiMe, formatDate, formatExpiryRemaining } from "../api";
 import { useAuth } from "../auth";
 import { ThemedIconAvatar } from "../components/ThemedIconAvatar";
 import { useServiceStatus } from "../hooks/useServiceStatus";
@@ -83,6 +83,7 @@ function formatLimitIps(limitIps: number): string {
 
 function XuiSubscriptionCard({ client }: { client: XuiClient }) {
   const { message } = App.useApp();
+  const expiryRemaining = formatExpiryRemaining(client.expiry_datetime);
 
   return (
     <Card
@@ -105,7 +106,10 @@ function XuiSubscriptionCard({ client }: { client: XuiClient }) {
         <Text>
           Лимит IP: <Text strong>{formatLimitIps(client.limit_ips)}</Text>
         </Text>
-        <Text>Действует до: {formatDate(client.expiry_datetime)}</Text>
+        <Text>
+          Действует до: {formatDate(client.expiry_datetime)}
+          {expiryRemaining ? ` · ${expiryRemaining}` : null}
+        </Text>
 
         {client.sub_url ? (
           <div style={{ marginTop: 12 }}>

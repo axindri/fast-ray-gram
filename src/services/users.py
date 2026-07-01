@@ -6,11 +6,11 @@ from fastapi import Depends, HTTPException
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.enums import InvoiceStatus
+from src.core.enums import InvoiceStatus, Role
 from src.core.logger import get_logger
 from src.core.settings import settings
 from src.models.tw import InvoiceResponse
-from src.models.users import AdminUserResponse, CreateUserRequest, UserProfileResponse
+from src.models.users import AdminUserResponse, CreateUserRequest, UpdateUserRoleResponse, UserProfileResponse
 from src.models.xui import ClientResponse, CreateClientRequest
 from src.schemas.invoices import Invoice
 from src.schemas.users import User
@@ -124,6 +124,37 @@ class UserService:
         logger.debug(f"Refresh token for user {user.id} with: {jwt_data}")
         jwt_token = await self.jwt_service.encode(jwt_data)
         return jwt_token
+
+    async def _encode_user_token(self, user: User) -> str:
+        jwt_data = {
+            "sub": str(user.id),
+            "role": str(user.role),
+            "exp": (datetime.now() + timedelta(days=settings.app.jwt_exp_days)).timestamp(),
+            "token_position": user.token_position,
+        }
+        logger.debug(f"Issue token for user {user.id} with: {jwt_data}")
+        return await self.jwt_service.encode(jwt_data)
+
+    async def update_role(self, db: AsyncSession, id: int, role: Role, actor_role: Role) -> UpdateUserRoleResponse:
+        if role == Role.SUPERUSER:
+            raise HTTPException(status_code=400, detail="Superuser role cannot be assigned")
+
+        user = await self.get_by_id(db, id)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user.role == Role.SUPERUSER:
+            raise HTTPException(status_code=400, detail="Superuser role cannot be changed")
+        if actor_role == Role.ADMIN and role == Role.ADMIN:
+            raise HTTPException(status_code=400, detail="Admin cannot assign admin role")
+        if actor_role == Role.ADMIN and user.role == Role.ADMIN:
+            raise HTTPException(status_code=400, detail="Admin cannot change another admin")
+
+        user.role = role
+        user.token_position += 1
+        await db.flush()
+        await db.commit()
+        token = await self._encode_user_token(user)
+        return UpdateUserRoleResponse(user=AdminUserResponse.model_validate(user), token=token)
 
     async def get_xui_user_profile_by_id(self, db: AsyncSession, id: int) -> ClientResponse:
         user = await self.get_by_id(db, id)

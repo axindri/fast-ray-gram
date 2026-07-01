@@ -123,7 +123,7 @@ export function AppLayout() {
             <Footer style={footerStyle}>
               <Space wrap style={{ justifyContent: "center" }}>
                 <Text type="secondary" style={{ paddingRight: 8, paddingLeft: 8 }}>
-                  v1.3.3
+                  v1.4.1
                 </Text>
                 <ThemeToggle />
                 <Button

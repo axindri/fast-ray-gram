@@ -99,6 +99,11 @@ export type AdminUser = {
   sub_url: string;
 };
 
+export type UpdateUserRoleResponse = {
+  user: AdminUser;
+  token: string;
+};
+
 export type CreateUserPayload = {
   username: string;
   role: UserRole;

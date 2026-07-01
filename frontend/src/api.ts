@@ -7,6 +7,7 @@ import type {
   Invoice,
   Paginated,
   StatusResponse,
+  UpdateUserRoleResponse,
   UserProfile,
   XuiClient,
 } from "./types";
@@ -80,6 +81,49 @@ export function formatDate(value?: string): string {
   return value ? new Date(value).toLocaleString("ru-RU") : "—";
 }
 
+function pluralRu(value: number, one: string, few: string, many: string): string {
+  const abs = Math.abs(value);
+  const mod10 = abs % 10;
+  const mod100 = abs % 100;
+
+  if (mod10 === 1 && mod100 !== 11) {
+    return one;
+  }
+
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return few;
+  }
+
+  return many;
+}
+
+export function formatExpiryRemaining(value?: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const expiry = new Date(value);
+  if (Number.isNaN(expiry.getTime())) {
+    return null;
+  }
+
+  const diffMs = expiry.getTime() - Date.now();
+  if (diffMs <= 0) {
+    return "(истекло)";
+  }
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const hourMs = 60 * 60 * 1000;
+
+  if (diffMs >= dayMs) {
+    const days = Math.floor(diffMs / dayMs);
+    return `(осталось ${days} ${pluralRu(days, "день", "дня", "дней")})`;
+  }
+
+  const hours = Math.max(1, Math.ceil(diffMs / hourMs));
+  return `(осталось ${hours} ${pluralRu(hours, "час", "часа", "часов")})`;
+}
+
 export async function fetchMe(): Promise<UserProfile> {
   return request<UserProfile>(`${API_PREFIX}/user/me`);
 }
@@ -146,6 +190,13 @@ export async function fetchUserById(id: number): Promise<AdminUser> {
 
 export async function refreshUserToken(id: number): Promise<string> {
   return request<string>(`${API_PREFIX}/admin/users/${id}/refresh-token`, { method: "POST" });
+}
+
+export async function updateUserRole(id: number, role: "user" | "admin"): Promise<UpdateUserRoleResponse> {
+  return request<UpdateUserRoleResponse>(`${API_PREFIX}/admin/users/${id}/role`, {
+    method: "POST",
+    body: JSON.stringify({ role }),
+  });
 }
 
 export async function deleteUser(id: number): Promise<void> {
